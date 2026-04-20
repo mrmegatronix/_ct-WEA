@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Christchurch Weather (Simple Edition)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050505;
+            --gold: #D4AF37;
+            --text-main: #ffffff;
+            --text-dim: #9ca3af;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        h1, h2, h3, .font-heading {
+            font-family: 'Oswald', sans-serif;
+        }
+
+        .dashboard {
+            width: 100%;
+            max-width: 1200px;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 2px solid var(--gold);
+            padding-bottom: 1rem;
+        }
+
+        .city {
+            font-size: 5rem;
+            font-weight: 700;
+            line-height: 1;
+            letter-spacing: -2px;
+            text-transform: uppercase;
+        }
+
+        .clock {
+            font-size: 4rem;
+            font-weight: 700;
+            color: var(--gold);
+            line-height: 1;
+        }
+
+        .main-weather {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .icon-container {
+            width: 250px;
+            height: 250px;
+            filter: drop-shadow(0 0 40px rgba(212, 175, 55, 0.2));
+            animation: float 4s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .temp-display {
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .temp-main {
+            font-size: 12rem;
+            font-weight: 700;
+            line-height: 0.8;
+        }
+
+        .temp-unit {
+            font-size: 4rem;
+            color: var(--gold);
+            margin-top: 1rem;
+        }
+
+        .temp-highlow {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            margin-left: 2rem;
+            padding-left: 2rem;
+            border-left: 2px solid rgba(212, 175, 55, 0.3);
+            font-size: 2rem;
+            font-weight: 700;
+            gap: 1rem;
+        }
+
+        .temp-highlow span {
+            color: var(--gold);
+        }
+
+        .temp-highlow b {
+            color: var(--text-main);
+            margin-left: 10px;
+        }
+
+        .cards {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .card {
+            flex: 1;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-value-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-value {
+            font-size: 3rem;
+            font-weight: 700;
+        }
+
+        .card-unit {
+            font-size: 1.5rem;
+            color: var(--text-dim);
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+        }
+
+        .card-label {
+            font-size: 1.2rem;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: 700;
+        }
+
+        .status {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+            color: var(--text-dim);
+            text-align: right;
+            margin-top: -1rem;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status.connected::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981;
+        }
+
+        .status.offline::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+            box-shadow: 0 0 10px #ef4444;
+        }
+
+        .nav-icon { width: 40px; height: 40px; }
+        svg { width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <div class="city font-heading">Christchurch</div>
+            <div class="clock font-heading" id="clock">--:--</div>
+        </div>
+        <div class="status offline" id="status">INITIALIZING</div>
+
+        <div class="main-weather">
+            <div class="icon-container" id="main-icon">
+                <!-- SVG injected via JS -->
+            </div>
+            
+            <div class="temp-display font-heading">
+                <div class="temp-main" id="temp">--</div>
+                <div class="temp-unit">°</div>
+                <div class="temp-highlow">
+                    <div><span>H</span> <b id="high">--°</b></div>
+                    <div style="opacity:0.7;"><span>L</span> <b id="low">--°</b></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="cards">
+            <div class="card font-heading">
+                <div class="card-value-group">
+                    <div id="wind-icon"></div>
+                    <div class="card-value" id="wind-speed">--</div>
+                    <div class="card-unit">KM/H</div>
+                </div>
+                <div class="card-label" id="wind-dir">--</div>
+            </div>
+            <div class="card font-heading">
+                <div class="card-value-group">
+                    <div class="card-value" id="rain">--</div>
+                    <div class="card-unit">MM</div>
+                </div>
+                <div class="card-label">Rain</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
