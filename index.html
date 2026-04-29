@@ -134,6 +134,15 @@
             width: 350px;
             height: 350px;
             filter: drop-shadow(0 0 50px rgba(255,255,255,0.3));
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .icon-container svg {
+            overflow: visible; /* Allow animations to exceed viewBox without clipping */
+            width: 100%;
+            height: 100%;
         }
 
         .temp-display {
@@ -144,10 +153,11 @@
         .temp-main {
             font-size: 18rem;
             font-weight: 900;
-            line-height: 0.8;
+            line-height: 1; /* Increased from 0.8 to prevent vertical clipping */
             background: linear-gradient(to bottom, #fff, #ccc);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            padding: 0.5rem 0; /* Extra safety margin */
         }
 
         .temp-unit {

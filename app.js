@@ -22,7 +22,7 @@ const getDefs = () => `
 
 const Icons = {
     Sun: () => `
-        <svg viewBox="0 0 64 64" class="animate-rotate">
+        <svg viewBox="0 0 64 64" class="animate-rotate" overflow="visible">
             ${getDefs()}
             <circle cx="32" cy="32" r="16" fill="url(#grad-gold)" />
             ${[0,45,90,135,180,225,270,315].map(deg => `
@@ -31,13 +31,13 @@ const Icons = {
         </svg>
     `,
     Cloud: () => `
-        <svg viewBox="0 0 64 64">
+        <svg viewBox="0 0 64 64" overflow="visible">
             ${getDefs()}
             <path class="animate-float" d="M46 48H18C11.37 48 6 42.63 6 36C6 29.8 10.6 24.7 16.6 24.1C17.8 15.6 25 9 33.5 9C42.8 9 50.5 15.8 52 24.8C57.6 25.9 62 30.7 62 36.5C62 42.85 56.85 48 50.5 48H46Z" fill="url(#grad-silver)" />
         </svg>
     `,
     Rain: () => `
-        <svg viewBox="0 0 64 64">
+        <svg viewBox="0 0 64 64" overflow="visible">
             ${getDefs()}
             <path d="M46 38H18C11.37 38 6 32.63 6 26C6 19.8 10.6 14.7 16.6 14.1C17.8 5.6 25 -1 33.5 -1C42.8 -1 50.5 5.8 52 14.8C57.6 15.9 62 20.7 62 26.5C62 32.85 56.85 38 50.5 38H46Z" fill="url(#grad-silver)" />
             <g>
@@ -48,7 +48,7 @@ const Icons = {
         </svg>
     `,
     Moon: () => `
-        <svg viewBox="0 0 64 64">
+        <svg viewBox="0 0 64 64" overflow="visible">
             ${getDefs()}
             <path d="M40 10 A 24 24 0 1 0 40 54 A 18 18 0 1 1 40 10" fill="url(#grad-silver)" class="animate-float" />
         </svg>
