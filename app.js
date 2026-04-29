@@ -128,7 +128,7 @@ async function updateWeather() {
         // Update Status & Background
         document.getElementById('status').textContent = 'LIVE DATA: CHRISTCHURCH';
         document.getElementById('status').classList.add('connected');
-        updateBackground(data.current.is_day);
+        updateBackground(data.current.is_day, data.current.weather_code);
 
     } catch (err) {
         console.error(err);
@@ -137,13 +137,19 @@ async function updateWeather() {
     }
 }
 
-function updateBackground(isDay) {
+function updateBackground(isDay, weatherCode) {
     const bg = document.getElementById('dynamic-bg');
     const stars = document.getElementById('stars');
     const hour = new Date().getHours();
     
     bg.className = '';
     stars.classList.remove('stars-visible');
+
+    // Overcast or Rain logic
+    if (weatherCode >= 3) {
+        bg.classList.add('bg-cloudy');
+        return;
+    }
 
     if (hour >= 6 && hour < 9) bg.classList.add('bg-sunrise');
     else if (hour >= 9 && hour < 17) bg.classList.add('bg-day');
