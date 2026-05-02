@@ -84,6 +84,7 @@ const getDayName = (dateStr) => {
 // --- Core Logic ---
 
 async function updateWeather() {
+    console.log('[WEA] Fetching fresh weather data for Christchurch...');
     try {
         const params = new URLSearchParams({
             latitude: CHRISTCHURCH_COORDS.lat,
@@ -95,52 +96,70 @@ async function updateWeather() {
         });
 
         const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+        
         const data = await res.json();
+        if (!data || !data.current || !data.daily) throw new Error('Malformed API Response');
+
+        console.log('[WEA] Data received:', data);
 
         // Update Current Slide
-        document.getElementById('temp').textContent = Math.round(data.current.temperature_2m);
-        document.getElementById('high').textContent = Math.round(data.daily.temperature_2m_max[0]) + '°';
-        document.getElementById('low').textContent = Math.round(data.daily.temperature_2m_min[0]) + '°';
-        document.getElementById('wind-speed').textContent = Math.round(data.current.wind_speed_10m);
-        document.getElementById('rain').textContent = data.current.precipitation.toFixed(1);
-        document.getElementById('condition-text').textContent = getConditionText(data.current.weather_code);
+        const current = data.current;
+        const daily = data.daily;
+
+        document.getElementById('temp').textContent = Math.round(current.temperature_2m ?? 0);
+        document.getElementById('high').textContent = Math.round(daily.temperature_2m_max[0] ?? 0) + '°';
+        document.getElementById('low').textContent = Math.round(daily.temperature_2m_min[0] ?? 0) + '°';
+        document.getElementById('wind-speed').textContent = Math.round(current.wind_speed_10m ?? 0);
+        document.getElementById('rain').textContent = (current.precipitation ?? 0).toFixed(1);
+        document.getElementById('condition-text').textContent = getConditionText(current.weather_code);
         
-        document.getElementById('main-icon').innerHTML = getIconForCode(data.current.weather_code, data.current.is_day);
-        document.getElementById('wind-icon').innerHTML = Icons.Nav(data.current.wind_direction_10m);
+        document.getElementById('main-icon').innerHTML = getIconForCode(current.weather_code, current.is_day);
+        document.getElementById('wind-icon').innerHTML = Icons.Nav(current.wind_direction_10m);
 
         // Update Forecast Slide
         const container = document.getElementById('forecast-container');
-        container.innerHTML = '';
-        
-        data.daily.time.forEach((time, i) => {
-            const card = document.createElement('div');
-            card.className = 'day-card';
-            card.style.animationDelay = `${i * 0.1}s`;
-            card.innerHTML = `
-                <div class="day-name">${getDayName(time)}</div>
-                <div class="day-icon">${getIconForCode(data.daily.weather_code[i], true)}</div>
-                <div class="day-temp font-heading">${Math.round(data.daily.temperature_2m_max[i])}°</div>
-                <div class="day-highlow-small font-heading">LO ${Math.round(data.daily.temperature_2m_min[i])}°</div>
-            `;
-            container.appendChild(card);
-        });
+        if (container) {
+            container.innerHTML = '';
+            daily.time.forEach((time, i) => {
+                const card = document.createElement('div');
+                card.className = 'day-card';
+                card.style.animationDelay = `${i * 0.1}s`;
+                card.innerHTML = `
+                    <div class="day-name">${getDayName(time)}</div>
+                    <div class="day-icon">${getIconForCode(daily.weather_code[i], true)}</div>
+                    <div class="day-temp font-heading">${Math.round(daily.temperature_2m_max[i])}°</div>
+                    <div class="day-highlow-small font-heading">LO ${Math.round(daily.temperature_2m_min[i])}°</div>
+                `;
+                container.appendChild(card);
+            });
+        }
 
         // Update Status & Background
-        document.getElementById('status-text').textContent = 'LIVE DATA: CHRISTCHURCH';
-        document.getElementById('last-sync').textContent = new Date().toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit', hour12: false });
-        document.getElementById('status').classList.add('connected');
+        const statusEl = document.getElementById('status');
+        const statusTextEl = document.getElementById('status-text');
+        if (statusTextEl) statusTextEl.textContent = 'LIVE DATA: CHRISTCHURCH';
+        if (statusEl) statusEl.classList.add('connected');
         
-        // Refresh radar image
-        const radar = document.getElementById('radar-image');
-        if (radar) radar.src = `https://www.metservice.com/maps-radar/rain/canterbury?cb=${Date.now()}`;
+        const lastSyncEl = document.getElementById('last-sync');
+        if (lastSyncEl) lastSyncEl.textContent = new Date().toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit', hour12: false });
         
-        updateBackground(data.current.is_day, data.current.weather_code);
+        // Radar image removed as per user request
+        
+        updateBackground(current.is_day, current.weather_code);
         updateSummary(data);
 
     } catch (err) {
-        console.error(err);
-        document.getElementById('status').textContent = 'CONNECTION ERROR';
-        document.getElementById('status').classList.remove('connected');
+        console.error('[WEA] Fetch Error:', err);
+        const statusTextEl = document.getElementById('status-text');
+        if (statusTextEl) {
+            statusTextEl.textContent = 'CONNECTION ERROR: RETRYING...';
+        }
+        const statusEl = document.getElementById('status');
+        if (statusEl) statusEl.classList.remove('connected');
+        
+        // Retry sooner on error
+        setTimeout(updateWeather, 10000);
     }
 }
 
@@ -256,6 +275,23 @@ window.addEventListener('mousemove', () => {
 // --- Init ---
 updateClock();
 updateWeather();
+function updateProgress() {
+    const bar = document.getElementById('progress-bar');
+    if (!bar) return;
+    
+    const now = Date.now();
+    const cycleTime = 15000; // Match SLIDE_INTERVAL_MS
+    const elapsed = now % cycleTime;
+    const percent = (elapsed / cycleTime) * 100;
+    
+    bar.style.width = percent + '%';
+    
+    // Auto-cycle slide if progress hits ~0 (using a small threshold or just tracking state)
+    // Actually, setInterval(cycleSlides, SLIDE_INTERVAL_MS) is already handling it?
+    // Let's check.
+}
+
+setInterval(updateProgress, 50);
+setInterval(cycleSlides, SLIDE_INTERVAL_MS);
 setInterval(updateClock, 1000);
 setInterval(updateWeather, REFRESH_INTERVAL_MS);
-setInterval(updateProgress, 100);
