@@ -10,11 +10,18 @@
     <style>
         :root {
             --gold: #D4AF37;
+            --gold-glow: rgba(212, 175, 55, 0.3);
             --text-main: #ffffff;
             --text-dim: rgba(255,255,255,0.6);
-            --glass: rgba(255,255,255,0.05);
-            --glass-border: rgba(255,255,255,0.1);
+            --glass: rgba(255,255,255,0.03);
+            --glass-strong: rgba(255,255,255,0.08);
+            --glass-border: rgba(255,255,255,0.15);
+            --bg-dark: #020617;
         }
+
+        .text-value { font-family: 'Oswald', sans-serif; font-weight: 700; text-transform: uppercase; }
+        .text-label { font-family: 'Inter', sans-serif; font-weight: 600; text-transform: uppercase; letter-spacing: 4px; color: var(--gold); opacity: 0.8; }
+        .text-status { font-family: 'Oswald', sans-serif; font-weight: 500; text-transform: uppercase; letter-spacing: 2px; }
 
         * { box-sizing: border-box; }
 
@@ -33,20 +40,37 @@
             text-transform: uppercase;
         }
 
-        /* Real-time Dynamic Background */
+        /* Real-time Dynamic Background with Mesh Gradient */
         #dynamic-bg {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
             z-index: -1;
-            transition: 2s ease-in-out;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            transition: background 3s ease-in-out;
+            background: var(--bg-dark);
+            overflow: hidden;
         }
 
-        .bg-night { background: linear-gradient(135deg, #020617 0%, #0f172a 100%) !important; }
-        .bg-sunrise { background: linear-gradient(135deg, #ffedd5 0%, #fdba74 50%, #f97316 100%) !important; }
-        .bg-day { background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%) !important; }
-        .bg-sunset { background: linear-gradient(135deg, #f97316 0%, #7c2d12 100%) !important; }
-        .bg-cloudy { background: linear-gradient(135deg, #4b5563 0%, #1f2937 100%) !important; }
+        .mesh-gradient {
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: 
+                radial-gradient(circle at 30% 30%, rgba(30, 41, 59, 0.5) 0%, transparent 50%),
+                radial-gradient(circle at 70% 70%, rgba(15, 23, 42, 0.5) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(2, 6, 23, 0.8) 0%, transparent 100%);
+            animation: meshMove 20s ease-in-out infinite alternate;
+            filter: blur(80px);
+        }
+
+        @keyframes meshMove {
+            0% { transform: rotate(0deg) scale(1); }
+            100% { transform: rotate(15deg) scale(1.1); }
+        }
+
+        .bg-night .mesh-gradient { background: radial-gradient(circle at 50% 50%, #0f172a 0%, #020617 100%); }
+        .bg-sunrise .mesh-gradient { background: radial-gradient(circle at 50% 10%, #fb923c 0%, #7c2d12 100%); }
+        .bg-day .mesh-gradient { background: radial-gradient(circle at 50% 50%, #0ea5e9 0%, #0369a1 100%); }
+        .bg-sunset .mesh-gradient { background: radial-gradient(circle at 50% 90%, #f97316 0%, #451a03 100%); }
+        .bg-cloudy .mesh-gradient { background: radial-gradient(circle at 50% 50%, #4b5563 0%, #111827 100%); }
 
         /* Stars for night mode */
         #stars {
@@ -73,20 +97,41 @@
             width: 100%;
             height: 100%;
             display: flex;
-            justify-content: flex-start;
+            justify-content: space-between;
             align-items: center;
             flex-direction: column;
             opacity: 0;
-            transform: translateY(30px);
-            transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
+            visibility: hidden;
+            transform: scale(1.1);
+            filter: blur(20px);
+            transition: all 1.5s cubic-bezier(0.2, 0.8, 0.2, 1);
             pointer-events: none;
-            padding: 4rem 4rem 0 4rem;
+            padding: 4rem 6rem;
+            z-index: 1;
         }
 
         .slide.active {
             opacity: 1;
-            transform: translateX(0);
+            visibility: visible;
+            transform: scale(1);
+            filter: blur(0);
             pointer-events: auto;
+            z-index: 10;
+        }
+
+        /* Staggered Content Animation */
+        .slide.active .dashboard > * {
+            animation: slideUpFade 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            opacity: 0;
+        }
+
+        .slide.active .dashboard > *:nth-child(1) { animation-delay: 0.1s; }
+        .slide.active .dashboard > *:nth-child(2) { animation-delay: 0.3s; }
+        .slide.active .dashboard > *:nth-child(3) { animation-delay: 0.5s; }
+
+        @keyframes slideUpFade {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         /* Current Weather Slide */
@@ -95,7 +140,7 @@
             max-width: 1800px;
             display: flex;
             flex-direction: column;
-            gap: 2rem;
+            gap: 1rem;
         }
 
         .header {
@@ -103,41 +148,46 @@
             justify-content: space-between;
             align-items: flex-end;
             border-bottom: 4px solid var(--gold);
-            padding-bottom: 1rem;
-            opacity: 0;
-            transition: opacity 0.5s ease;
+            padding-bottom: 1.5rem;
+            width: 100%;
         }
-
-        body:hover .header { opacity: 1; }
 
         .city {
             font-size: 8rem;
-            font-weight: 900;
-            line-height: 1;
-            letter-spacing: -2px;
+            font-weight: 700;
+            line-height: 0.9;
+            letter-spacing: -3px;
+            font-family: 'Oswald', sans-serif;
         }
 
         .clock {
             font-size: 6rem;
-            font-weight: 700;
+            font-weight: 500;
             color: var(--gold);
+            font-family: 'Oswald', sans-serif;
         }
 
         .main-weather {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
             background: var(--glass);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(50px);
             border: 1px solid var(--glass-border);
-            border-radius: 40px;
-            padding: 2rem 4rem;
-            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            border-radius: 80px;
+            padding: 4rem 6rem;
+            box-shadow: 
+                0 100px 150px -50px rgba(0,0,0,0.8),
+                inset 0 0 0 1px rgba(255,255,255,0.1);
+            position: relative;
+            gap: 8rem;
+            width: 100%;
+            margin: 2rem 0;
         }
 
         .icon-container {
-            width: 350px;
-            height: 350px;
+            width: 300px;
+            height: 300px;
             filter: drop-shadow(0 0 50px rgba(255,255,255,0.3));
             display: flex;
             justify-content: center;
@@ -156,19 +206,20 @@
         }
 
         .temp-main {
-            font-size: 20rem;
-            font-weight: 900;
-            line-height: 1; 
-            background: linear-gradient(to bottom, #fff, #ccc);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            padding: 0;
+            font-size: 16rem;
+            font-weight: 700;
+            line-height: 0.75; 
+            color: #fff;
+            text-shadow: 0 0 60px rgba(255,255,255,0.2);
+            font-family: 'Oswald', sans-serif;
         }
 
         .temp-unit {
-            font-size: 6rem;
+            font-size: 10rem;
             color: var(--gold);
-            margin-top: 1.5rem;
+            margin-top: 1rem;
+            font-weight: 300;
+            font-family: 'Inter', sans-serif;
         }
 
         .temp-highlow {
@@ -177,10 +228,11 @@
             justify-content: center;
             margin-left: 3rem;
             padding-left: 3rem;
-            border-left: 4px solid var(--gold);
+            border-left: 6px solid var(--gold);
             font-size: 3rem;
-            font-weight: 700;
-            gap: 1.5rem;
+            font-weight: 500;
+            gap: 1rem;
+            font-family: 'Oswald', sans-serif;
         }
 
         .temp-highlow span { color: var(--gold); }
@@ -194,18 +246,27 @@
         .card {
             flex: 1;
             background: var(--glass);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(30px);
             border: 1px solid var(--glass-border);
-            border-radius: 30px;
-            padding: 2.5rem;
+            border-radius: 40px;
+            padding: 2rem;
             display: flex;
             flex-direction: column;
             align-items: center;
-            transition: 0.3s;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
         }
 
-        .card-value { font-size: 7rem; font-weight: 900; }
-        .card-label { font-size: 2rem; color: var(--gold); letter-spacing: 4px; font-weight: 700; margin-bottom: 0.5rem; }
+        .card:hover {
+            background: var(--glass-strong);
+            transform: translateY(-10px);
+            border-color: var(--gold);
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5), inset 0 0 0 1px var(--gold-glow);
+        }
+
+        .card-value { font-size: 6rem; font-weight: 700; font-family: 'Oswald', sans-serif; }
+        .card-label { font-size: 1.8rem; color: var(--gold); letter-spacing: 5px; font-weight: 600; margin-bottom: 1rem; opacity: 0.8; }
+        .condition-text { font-family: 'Oswald', sans-serif; text-transform: uppercase; letter-spacing: 2px; }
 
         /* 7-Day Forecast Slide */
         .forecast-grid {
@@ -213,59 +274,79 @@
             grid-template-columns: repeat(7, 1fr);
             gap: 1.5rem;
             width: 100%;
-            height: 80%;
+            height: auto;
+            max-height: 750px;
         }
 
         .day-card {
             background: var(--glass);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(20px);
             border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 2.5rem 1rem;
+            border-radius: 30px;
+            padding: 3rem 1.5rem;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
             text-align: center;
-            animation: fadeInScale 0.5s ease-out forwards;
-            opacity: 0;
+            transition: all 0.4s ease;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05);
         }
 
-        @keyframes fadeInScale {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
+        .day-card:hover {
+            background: var(--glass-strong);
+            border-color: var(--gold);
+            transform: translateY(-5px) scale(1.02);
         }
 
-        .day-name { font-size: 3rem; font-weight: 800; color: var(--gold); }
-        .day-icon { width: 140px; height: 140px; margin: 1rem 0; }
-        .day-temp { font-size: 4.5rem; font-weight: 900; }
-        .day-highlow-small { font-size: 2rem; color: var(--text-dim); }
+        .day-name { font-size: 3rem; font-weight: 700; color: var(--gold); margin-bottom: 1rem; font-family: 'Oswald', sans-serif; }
+        .day-icon { width: 140px; height: 140px; margin: 1.5rem 0; filter: drop-shadow(0 0 30px rgba(255,255,255,0.2)); }
+        .day-temp { font-size: 5rem; font-weight: 700; margin-bottom: 0.5rem; font-family: 'Oswald', sans-serif; }
+        .day-highlow-small { font-size: 2.2rem; color: var(--text-dim); font-weight: 500; font-family: 'Oswald', sans-serif; }
 
         /* Status & UI */
         .status {
             position: fixed;
-            top: 2rem; right: 2rem;
-            font-size: 1.2rem;
-            letter-spacing: 2px;
+            top: 2rem; left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.8rem;
+            letter-spacing: 4px;
             color: var(--text-dim);
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 20px;
             z-index: 100;
             font-weight: 700;
+            background: rgba(255,255,255,0.05);
+            padding: 1rem 2rem;
+            border-radius: 100px;
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            font-family: 'Oswald', sans-serif;
+            text-transform: uppercase;
         }
 
         .status::before {
             content: '';
-            width: 10px; height: 10px;
+            width: 12px; height: 12px;
             border-radius: 50%;
             background: #ef4444;
+            animation: pulse 2s infinite;
         }
-        .status.connected::before { background: #10b981; box-shadow: 0 0 15px #10b981; }
+        .status.connected::before { background: #10b981; box-shadow: 0 0 20px #10b981; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
 
         /* Animations */
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .animate-rotate { animation: rotate 10s linear infinite; }
+        
+        @keyframes drift { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(30px); } }
+        .animate-drift { animation: drift 12s ease-in-out infinite; }
         
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
         .animate-float { animation: float 6s ease-in-out infinite; }
@@ -275,7 +356,20 @@
             50% { opacity: 1; }
             100% { transform: translateY(15px); opacity: 0; }
         }
-        .rain-drop { animation: rain 1s linear infinite; }
+        /* Progress Bar */
+        .progress-container {
+            position: fixed;
+            bottom: 0; left: 0; width: 100%; height: 10px;
+            background: rgba(255,255,255,0.05);
+            z-index: 1000;
+        }
+        #progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--gold), #fff);
+            box-shadow: 0 0 20px var(--gold);
+            transition: width 0.1s linear;
+        }
 
         /* Navigation Hub */
         nav#nav-hub {
@@ -289,7 +383,7 @@
             transform: translateY(100%);
             transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        body:hover nav#nav-hub { transform: translateY(0); }
+        nav#nav-hub.show { transform: translateY(0); }
         nav#nav-hub a { color: #888; text-decoration: none; font-size: 1rem; font-weight: 800; text-transform: uppercase; transition: 0.3s; }
         nav#nav-hub a:hover { color: var(--gold); }
         nav#nav-hub a.active { color: var(--gold); border-bottom: 2px solid var(--gold); }
@@ -297,18 +391,27 @@
 </head>
 <body>
     <div id="dynamic-bg">
+        <div class="mesh-gradient"></div>
         <div id="stars"></div>
+        <canvas id="particles" style="position: absolute; top: 0; left: 0;"></canvas>
     </div>
 
-    <div class="status" id="status">INITIALIZING</div>
+    <div class="status text-status" id="status">
+        <span id="status-text">INITIALIZING</span>
+        <span style="opacity:0.4; margin-left:10px;">|</span>
+        <span style="font-size:1.2rem; opacity:0.6; margin-left:10px;">LAST SYNC: <b id="last-sync">--:--</b></span>
+    </div>
 
     <div class="viewport">
         <!-- Slide 1: Current Weather -->
         <div class="slide active" id="slide-current">
             <div class="dashboard">
                 <div class="header">
-                    <div class="city font-heading">Christchurch</div>
-                    <div class="clock font-heading" id="clock">--:--</div>
+                    <div>
+                        <div class="text-label" style="font-size: 1.5rem; letter-spacing: 10px; margin-bottom: 0.5rem; color: var(--gold);">CURRENT WEATHER</div>
+                        <div class="city text-value" style="font-size: 6rem;">Christchurch</div>
+                    </div>
+                    <div class="clock text-value" id="clock" style="font-size: 5rem;">--:--</div>
                 </div>
 
                 <div class="main-weather">
@@ -316,30 +419,34 @@
                         <!-- SVG injected via JS -->
                     </div>
                     
-                    <div class="temp-display font-heading">
+                    <div class="temp-display text-value">
                         <div class="temp-main" id="temp">--</div>
                         <div class="temp-unit">°C</div>
                         <div class="temp-highlow">
-                            <div><span>MAX</span> <b id="high">--°</b></div>
-                            <div style="opacity:0.6;"><span>MIN</span> <b id="low">--°</b></div>
+                            <div><span class="text-label" style="color:inherit; font-size: 1.2rem;">MAX</span> <b id="high">--°</b></div>
+                            <div style="opacity:0.6;"><span class="text-label" style="color:inherit; font-size: 1.2rem;">MIN</span> <b id="low">--°</b></div>
                         </div>
+                    </div>
+
+                    <div id="weather-summary" style="position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%); font-size: 1.5rem; color: var(--text-dim); font-weight: 500; letter-spacing: 1px; text-transform: none; font-family: 'Inter', sans-serif;">
+                        Gathering atmospheric data...
                     </div>
                 </div>
 
                 <div class="cards">
-                    <div class="card font-heading">
-                        <div class="card-label">Wind Speed</div>
-                        <div class="card-value" id="wind-speed">--</div>
-                        <div id="wind-icon" style="width: 80px; height: 80px;"></div>
+                    <div class="card">
+                        <div class="text-label">Wind Speed</div>
+                        <div id="wind-icon" style="width: 80px; height: 80px; margin: 0.5rem 0;"></div>
+                        <div class="card-value text-value" id="wind-speed">--</div>
                     </div>
-                    <div class="card font-heading">
-                        <div class="card-label">Rainfall</div>
-                        <div class="card-value" id="rain">--</div>
-                        <div style="font-size: 1.5rem; color: var(--text-dim);">mm today</div>
+                    <div class="card">
+                        <div class="text-label">Rainfall</div>
+                        <div class="card-value text-value" id="rain">--</div>
+                        <div class="text-label" style="font-size: 1rem; opacity: 0.6;">MM TODAY</div>
                     </div>
-                    <div class="card font-heading">
-                        <div class="card-label">Conditions</div>
-                        <div class="card-value" id="condition-text" style="font-size: 3rem;">--</div>
+                    <div class="card">
+                        <div class="text-label">Conditions</div>
+                        <div class="card-value text-value" id="condition-text" style="font-size: 3rem;">--</div>
                     </div>
                 </div>
             </div>
@@ -349,12 +456,32 @@
         <div class="slide" id="slide-forecast">
             <div class="dashboard">
                 <div class="header">
-                    <div class="city font-heading" style="font-size: 8rem;">7-Day Forecast</div>
-                    <div class="clock font-heading" style="font-size: 6rem;">Christchurch</div>
+                    <div>
+                        <div class="text-label" style="font-size: 1.5rem; letter-spacing: 10px; margin-bottom: 0.5rem; color: var(--gold);">EXTENDED FORECAST</div>
+                        <div class="city text-value" style="font-size: 6rem;">7-Day Forecast</div>
+                    </div>
+                    <div class="clock text-value forecast-clock" style="font-size: 5rem;">--:--</div>
                 </div>
                 
                 <div class="forecast-grid" id="forecast-container">
                     <!-- Daily cards injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Live Feed / Radar -->
+        <div class="slide" id="slide-radar">
+            <div class="dashboard" style="height: 100%; justify-content: center;">
+                <div class="header">
+                    <div>
+                        <div class="text-label" style="font-size: 1.5rem; letter-spacing: 10px; margin-bottom: 0.5rem; color: var(--gold);">PRECIPITATION MAP</div>
+                        <div class="city text-value" style="font-size: 6rem;">LIVE CITY FEED</div>
+                    </div>
+                    <div class="clock text-value forecast-clock" style="font-size: 5rem;">--:--</div>
+                </div>
+                <div style="flex: 1; margin: 2rem 0; border-radius: 40px; overflow: hidden; border: 1px solid var(--glass-border); background: #000; position: relative;">
+                    <img src="https://www.metservice.com/maps-radar/rain/canterbury" id="radar-image" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.8;">
+                    <div style="position: absolute; top: 2rem; left: 2rem; background: rgba(255,0,0,0.6); padding: 0.5rem 1.5rem; border-radius: 10px; font-weight: 800; letter-spacing: 2px;">LIVE RADAR</div>
                 </div>
             </div>
         </div>
@@ -372,6 +499,11 @@
         <a href="../_ct-FIR/index.html">🔥 FIR</a>
         <a href="../_ct-NIM/index.html">🎨 NIM</a>
     </nav>
+
+    <!-- Progress Bar -->
+    <div class="progress-container">
+        <div id="progress-bar"></div>
+    </div>
 
     <script src="app.js"></script>
 </body>

@@ -31,13 +31,13 @@ const Icons = {
         </svg>
     `,
     Cloud: () => `
-        <svg viewBox="0 0 64 64" overflow="visible">
+        <svg viewBox="0 0 64 64" overflow="visible" class="animate-drift">
             ${getDefs()}
             <path class="animate-float" d="M46 48H18C11.37 48 6 42.63 6 36C6 29.8 10.6 24.7 16.6 24.1C17.8 15.6 25 9 33.5 9C42.8 9 50.5 15.8 52 24.8C57.6 25.9 62 30.7 62 36.5C62 42.85 56.85 48 50.5 48H46Z" fill="url(#grad-silver)" />
         </svg>
     `,
     Rain: () => `
-        <svg viewBox="0 0 64 64" overflow="visible">
+        <svg viewBox="0 0 64 64" overflow="visible" class="animate-drift">
             ${getDefs()}
             <path d="M46 38H18C11.37 38 6 32.63 6 26C6 19.8 10.6 14.7 16.6 14.1C17.8 5.6 25 -1 33.5 -1C42.8 -1 50.5 5.8 52 14.8C57.6 15.9 62 20.7 62 26.5C62 32.85 56.85 38 50.5 38H46Z" fill="url(#grad-silver)" />
             <g>
@@ -126,15 +126,35 @@ async function updateWeather() {
         });
 
         // Update Status & Background
-        document.getElementById('status').textContent = 'LIVE DATA: CHRISTCHURCH';
+        document.getElementById('status-text').textContent = 'LIVE DATA: CHRISTCHURCH';
+        document.getElementById('last-sync').textContent = new Date().toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit', hour12: false });
         document.getElementById('status').classList.add('connected');
+        
+        // Refresh radar image
+        const radar = document.getElementById('radar-image');
+        if (radar) radar.src = `https://www.metservice.com/maps-radar/rain/canterbury?cb=${Date.now()}`;
+        
         updateBackground(data.current.is_day, data.current.weather_code);
+        updateSummary(data);
 
     } catch (err) {
         console.error(err);
         document.getElementById('status').textContent = 'CONNECTION ERROR';
         document.getElementById('status').classList.remove('connected');
     }
+}
+
+function updateSummary(data) {
+    const temp = Math.round(data.current.temperature_2m);
+    const cond = getConditionText(data.current.weather_code).toLowerCase();
+    const rain = data.current.precipitation;
+    
+    let msg = `It's currently ${temp}°C with ${cond}.`;
+    if (rain > 0) msg += ` Light rainfall detected (${rain}mm).`;
+    else if (temp > 20) msg += ` A beautiful warm day in the city.`;
+    else if (temp < 10) msg += ` A crisp, cool Christchurch day.`;
+    
+    document.getElementById('weather-summary').textContent = msg;
 }
 
 function updateBackground(isDay, weatherCode) {
@@ -145,42 +165,97 @@ function updateBackground(isDay, weatherCode) {
     bg.className = '';
     stars.classList.remove('stars-visible');
 
-    // Overcast or Rain logic
-    if (weatherCode >= 3) {
-        bg.classList.add('bg-cloudy');
-        return;
-    }
-
-    if (hour >= 6 && hour < 9) bg.classList.add('bg-sunrise');
+    if (weatherCode >= 3) bg.classList.add('bg-cloudy');
+    else if (hour >= 6 && hour < 9) bg.classList.add('bg-sunrise');
     else if (hour >= 9 && hour < 17) bg.classList.add('bg-day');
     else if (hour >= 17 && hour < 20) bg.classList.add('bg-sunset');
     else {
         bg.classList.add('bg-night');
         stars.classList.add('stars-visible');
     }
+    
+    initParticles(weatherCode, isDay);
+}
+
+// --- Particle Engine ---
+let particleInterval;
+function initParticles(code, isDay) {
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    let particles = [];
+    clearInterval(particleInterval);
+    
+    const type = code >= 71 ? 'snow' : (code >= 51 ? 'rain' : (isDay ? 'none' : 'none'));
+    if (type === 'none') { ctx.clearRect(0,0,canvas.width,canvas.height); return; }
+
+    for(let i=0; i<100; i++) {
+        particles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            v: Math.random() * 5 + 5,
+            l: Math.random() * 20 + 10
+        });
+    }
+
+    particleInterval = setInterval(() => {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.strokeStyle = type === 'rain' ? 'rgba(173, 216, 230, 0.4)' : 'white';
+        ctx.lineWidth = 2;
+        
+        particles.forEach(p => {
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p.x, p.y + p.l);
+            ctx.stroke();
+            p.y += p.v;
+            if(p.y > canvas.height) p.y = -p.l;
+        });
+    }, 30);
 }
 
 // --- Slide & UI Logic ---
-
 let currentSlideIdx = 0;
+let progress = 0;
+
+function updateProgress() {
+    progress += (100 / (SLIDE_INTERVAL_MS / 100));
+    if (progress >= 100) {
+        progress = 0;
+        cycleSlides();
+    }
+    document.getElementById('progress-bar').style.width = progress + '%';
+}
+
 function cycleSlides() {
     const slides = document.querySelectorAll('.slide');
     slides.forEach(s => s.classList.remove('active'));
-    
     currentSlideIdx = (currentSlideIdx + 1) % slides.length;
     slides[currentSlideIdx].classList.add('active');
 }
 
 function updateClock() {
     const now = new Date();
-    document.getElementById('clock').textContent = now.toLocaleTimeString('en-NZ', { 
+    const timeStr = now.toLocaleTimeString('en-NZ', { 
         hour: '2-digit', minute: '2-digit', hour12: false 
     });
+    document.querySelectorAll('.clock').forEach(el => el.textContent = timeStr);
 }
+
+// Show/Hide Nav on movement
+let navTimeout;
+window.addEventListener('mousemove', () => {
+    const nav = document.getElementById('nav-hub');
+    nav.classList.add('show');
+    clearTimeout(navTimeout);
+    navTimeout = setTimeout(() => nav.classList.remove('show'), 3000);
+});
 
 // --- Init ---
 updateClock();
 updateWeather();
 setInterval(updateClock, 1000);
 setInterval(updateWeather, REFRESH_INTERVAL_MS);
-setInterval(cycleSlides, SLIDE_INTERVAL_MS);
+setInterval(updateProgress, 100);
