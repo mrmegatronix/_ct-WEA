@@ -450,6 +450,20 @@
                     </div>
                 </div>
             </div>
+        <!-- Slide 2: 7-Day Forecast -->
+        <div class="slide" id="slide-forecast">
+            <div class="dashboard">
+                <div class="header">
+                    <div>
+                        <div class="text-label" style="font-size: 2.2rem; letter-spacing: 12px; margin-bottom: 1.2rem; color: #ffffff; text-shadow: 0 0 25px rgba(255, 215, 0, 0.8); opacity: 1; font-weight: 800;">7-DAY OUTLOOK</div>
+                        <div class="city text-value" style="font-size: 8rem; color: var(--gold);">Christchurch</div>
+                    </div>
+                    <div class="clock text-value" style="font-size: 5rem;">--:--</div>
+                </div>
+                <div class="forecast-grid" id="forecast-container">
+                    <!-- Cards injected by app.js -->
+                </div>
+            </div>
         </div>
 
         <!-- Slide 3: Rain Radar -->
@@ -462,7 +476,7 @@
                     </div>
                 </div>
                 <div style="background: var(--glass); border: 2px solid var(--gold); border-radius: 40px; overflow: hidden; height: 600px; width: 100%; box-shadow: 0 0 50px rgba(212, 175, 55, 0.2);">
-                    <iframe src="https://www.windy.com/-Rain-radar-radar?radar,-43.532,172.636,8" style="width: 100%; height: 100%; border: none;"></iframe>
+                    <iframe src="https://embed.windy.com/embed2.html?lat=-43.532&lon=172.636&zoom=8&level=surface&overlay=radar&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1" style="width: 100%; height: 100%; border: none;"></iframe>
                 </div>
             </div>
         </div>
@@ -477,7 +491,7 @@
                     </div>
                 </div>
                 <div style="background: var(--glass); border: 2px solid var(--gold); border-radius: 40px; overflow: hidden; height: 600px; width: 100%; box-shadow: 0 0 50px rgba(212, 175, 55, 0.2);">
-                    <iframe src="https://www.windy.com/-Wind-wind?wind,-43.532,172.636,6" style="width: 100%; height: 100%; border: none;"></iframe>
+                    <iframe src="https://embed.windy.com/embed2.html?lat=-43.532&lon=172.636&zoom=6&level=surface&overlay=wind&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default" style="width: 100%; height: 100%; border: none;"></iframe>
                 </div>
             </div>
         </div>
@@ -485,16 +499,6 @@
 
     </div>
 
-    <!-- Navigation Hub -->
-    <nav id="nav-hub">
-        <a href="../_ct-MATRIX/index.html">📺 Display</a>
-        <a href="../_ct-MATRIX/masteradmin.html">🛠 Admin</a>
-        <span style="color:#333">|</span>
-        <a href="../_ct-MOM/index.html">🌸 MOM</a>
-        <a href="../_ct-MMR/index.html">🥩 MMR</a>
-        <a href="../_ct-ACE/index.html">🃏 ACE</a>
-        <a href="index.html" class="active">🌦 WEA</a>
-    </nav>
 
     <!-- Progress Bar -->
     <div class="progress-container">
