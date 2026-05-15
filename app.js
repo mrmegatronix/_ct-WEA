@@ -263,14 +263,18 @@ function updateClock() {
     document.querySelectorAll('.clock').forEach(el => el.textContent = timeStr);
 }
 
-// Show/Hide Nav on movement
+// Show/Hide Nav on movement - Removed to prevent overlap
+/*
 let navTimeout;
 window.addEventListener('mousemove', () => {
     const nav = document.getElementById('nav-hub');
-    nav.classList.add('show');
-    clearTimeout(navTimeout);
-    navTimeout = setTimeout(() => nav.classList.remove('show'), 3000);
+    if (nav) {
+        nav.classList.add('show');
+        clearTimeout(navTimeout);
+        navTimeout = setTimeout(() => nav.classList.remove('show'), 3000);
+    }
 });
+*/
 
 // --- Init ---
 updateClock();
