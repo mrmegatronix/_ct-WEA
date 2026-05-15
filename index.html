@@ -153,7 +153,7 @@
         }
 
         .city {
-            font-size: 8rem;
+            font-size: clamp(4rem, 8vw, 8rem);
             font-weight: 700;
             line-height: 0.9;
             letter-spacing: -3px;
@@ -161,7 +161,7 @@
         }
 
         .clock {
-            font-size: 6rem;
+            font-size: clamp(3rem, 6vw, 6rem);
             font-weight: 500;
             color: var(--gold);
             font-family: 'Oswald', sans-serif;
@@ -206,7 +206,7 @@
         }
 
         .temp-main {
-            font-size: 16rem;
+            font-size: clamp(8rem, 16vw, 16rem);
             font-weight: 700;
             line-height: 0.75; 
             color: #fff;
@@ -452,19 +452,32 @@
             </div>
         </div>
 
-        <!-- Slide 2: 7-Day Forecast -->
-        <div class="slide" id="slide-forecast">
+        <!-- Slide 3: Rain Radar -->
+        <div class="slide" id="slide-radar">
             <div class="dashboard">
                 <div class="header">
                     <div>
-                        <div class="text-label" style="font-size: 1.5rem; letter-spacing: 10px; margin-bottom: 0.5rem; color: var(--gold);">EXTENDED FORECAST</div>
-                        <div class="city text-value" style="font-size: 6rem;">7-Day Forecast</div>
+                        <div class="text-label" style="font-size: 1.5rem; letter-spacing: 10px; margin-bottom: 0.5rem; color: var(--gold);">MATRIX SATELLITE</div>
+                        <div class="city text-value" style="font-size: 6rem;">Rain Radar</div>
                     </div>
-                    <div class="clock text-value forecast-clock" style="font-size: 5rem;">--:--</div>
                 </div>
-                
-                <div class="forecast-grid" id="forecast-container">
-                    <!-- Daily cards injected here -->
+                <div style="background: var(--glass); border: 2px solid var(--gold); border-radius: 40px; overflow: hidden; height: 600px; width: 100%; box-shadow: 0 0 50px rgba(212, 175, 55, 0.2);">
+                    <iframe src="https://www.windy.com/-Rain-radar-radar?radar,-43.532,172.636,8" style="width: 100%; height: 100%; border: none;"></iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Wind Map -->
+        <div class="slide" id="slide-wind">
+            <div class="dashboard">
+                <div class="header">
+                    <div>
+                        <div class="text-label" style="font-size: 1.5rem; letter-spacing: 10px; margin-bottom: 0.5rem; color: var(--gold);">MATRIX SATELLITE</div>
+                        <div class="city text-value" style="font-size: 6rem;">Wind Velocity</div>
+                    </div>
+                </div>
+                <div style="background: var(--glass); border: 2px solid var(--gold); border-radius: 40px; overflow: hidden; height: 600px; width: 100%; box-shadow: 0 0 50px rgba(212, 175, 55, 0.2);">
+                    <iframe src="https://www.windy.com/-Wind-wind?wind,-43.532,172.636,6" style="width: 100%; height: 100%; border: none;"></iframe>
                 </div>
             </div>
         </div>

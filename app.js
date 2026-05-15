@@ -95,7 +95,7 @@ async function updateWeather() {
             forecast_days: 7
         });
 
-        const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}&t=${Date.now()}`);
         if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
         
         const data = await res.json();
