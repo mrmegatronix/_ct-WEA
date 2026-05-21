@@ -97,7 +97,7 @@ async function updateWeather() {
 
         const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}&t=${Date.now()}`);
         if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
-        
+
         const data = await res.json();
         if (!data || !data.current || !data.daily) throw new Error('Malformed API Response');
 
@@ -113,7 +113,7 @@ async function updateWeather() {
         document.getElementById('wind-speed').textContent = Math.round(current.wind_speed_10m ?? 0);
         document.getElementById('rain').textContent = (current.precipitation ?? 0).toFixed(1);
         document.getElementById('condition-text').textContent = getConditionText(current.weather_code);
-        
+
         document.getElementById('main-icon').innerHTML = getIconForCode(current.weather_code, current.is_day);
         document.getElementById('wind-icon').innerHTML = Icons.Nav(current.wind_direction_10m);
 
@@ -140,12 +140,12 @@ async function updateWeather() {
         const statusTextEl = document.getElementById('status-text');
         if (statusTextEl) statusTextEl.textContent = 'LIVE DATA: CHRISTCHURCH';
         if (statusEl) statusEl.classList.add('connected');
-        
+
         const lastSyncEl = document.getElementById('last-sync');
         if (lastSyncEl) lastSyncEl.textContent = new Date().toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit', hour12: false });
-        
+
         // Radar image removed as per user request
-        
+
         updateBackground(current.is_day, current.weather_code);
         updateSummary(data);
 
@@ -157,7 +157,7 @@ async function updateWeather() {
         }
         const statusEl = document.getElementById('status');
         if (statusEl) statusEl.classList.remove('connected');
-        
+
         // Retry sooner on error
         setTimeout(updateWeather, 10000);
     }
@@ -167,12 +167,12 @@ function updateSummary(data) {
     const temp = Math.round(data.current.temperature_2m);
     const cond = getConditionText(data.current.weather_code).toLowerCase();
     const rain = data.current.precipitation;
-    
+
     let msg = `It's currently ${temp}°C with ${cond}.`;
     if (rain > 0) msg += ` Light rainfall detected (${rain}mm).`;
     else if (temp > 20) msg += ` A beautiful warm day in the city.`;
     else if (temp < 10) msg += ` A crisp, cool Christchurch day.`;
-    
+
     document.getElementById('weather-summary').textContent = msg;
 }
 
@@ -180,7 +180,7 @@ function updateBackground(isDay, weatherCode) {
     const bg = document.getElementById('dynamic-bg');
     const stars = document.getElementById('stars');
     const hour = new Date().getHours();
-    
+
     bg.className = '';
     stars.classList.remove('stars-visible');
 
@@ -192,7 +192,7 @@ function updateBackground(isDay, weatherCode) {
         bg.classList.add('bg-night');
         stars.classList.add('stars-visible');
     }
-    
+
     initParticles(weatherCode, isDay);
 }
 
@@ -203,11 +203,12 @@ function initParticles(code, isDay) {
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    
+
     let particles = [];
     clearInterval(particleInterval);
-    
+
     const type = code >= 71 ? 'snow' : (code >= 51 ? 'rain' : (isDay ? 'none' : 'none'));
+
     if (type === 'none') { ctx.clearRect(0,0,canvas.width,canvas.height); return; }
 
     for(let i=0; i<100; i++) {
@@ -223,7 +224,7 @@ function initParticles(code, isDay) {
         ctx.clearRect(0,0,canvas.width,canvas.height);
         ctx.strokeStyle = type === 'rain' ? 'rgba(173, 216, 230, 0.4)' : 'white';
         ctx.lineWidth = 2;
-        
+
         particles.forEach(p => {
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
@@ -238,15 +239,6 @@ function initParticles(code, isDay) {
 // --- Slide & UI Logic ---
 let currentSlideIdx = 0;
 let progress = 0;
-
-function updateProgress() {
-    progress += (100 / (SLIDE_INTERVAL_MS / 100));
-    if (progress >= 100) {
-        progress = 0;
-        cycleSlides();
-    }
-    document.getElementById('progress-bar').style.width = progress + '%';
-}
 
 function cycleSlides() {
     const slides = document.querySelectorAll('.slide');
@@ -282,17 +274,13 @@ updateWeather();
 function updateProgress() {
     const bar = document.getElementById('progress-bar');
     if (!bar) return;
-    
+
     const now = Date.now();
     const cycleTime = 15000; // Match SLIDE_INTERVAL_MS
     const elapsed = now % cycleTime;
     const percent = (elapsed / cycleTime) * 100;
-    
+
     bar.style.width = percent + '%';
-    
-    // Auto-cycle slide if progress hits ~0 (using a small threshold or just tracking state)
-    // Actually, setInterval(cycleSlides, SLIDE_INTERVAL_MS) is already handling it?
-    // Let's check.
 }
 
 setInterval(updateProgress, 50);

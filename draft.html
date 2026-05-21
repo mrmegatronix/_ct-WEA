@@ -1,0 +1,1776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Christchurch Meteorological Broadcast Console (3-Slide Kiosk Edition)</title>
+    <!-- Outfit: Ultra-bold display font for kiosk headers, labels, and primary metrics -->
+    <!-- Inter: High-contrast sans-serif for mathematical data grids and readability from a distance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800;900&family=Outfit:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Widescreen TV Kiosk High-Contrast Color System */
+            --bg-base: #010204;
+            --panel-bg: rgba(6, 8, 16, 0.85);
+            --panel-border: rgba(255, 255, 255, 0.16);
+            --panel-glow: rgba(56, 189, 248, 0.08);
+            
+            --text-primary: #ffffff; /* Crisp white for legibility */
+            --text-secondary: #f3f4f6; /* Off-white for summaries */
+            --text-muted: #e5e7eb; /* Sharp light grey, strictly no thin/grey text */
+            
+            --accent-blue: #38bdf8;
+            --accent-emerald: #10b981;
+            --accent-amber: #fbbf24;
+            --accent-coral: #ef4444;
+            
+            --font-sans: 'Inter', sans-serif;
+            --font-display: 'Outfit', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            letter-spacing: -0.015em;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Procedural weather canvas background */
+        #dynamic-bg {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: -1;
+            background: var(--bg-base);
+            overflow: hidden;
+        }
+
+        #weather-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+        }
+
+        /* HUD Frame Container */
+        .hud-container {
+            width: 100vw;
+            height: 100vh;
+            padding: 3vh 3vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Centered Widescreen Header */
+        .hud-header {
+            display: grid;
+            grid-template-columns: 28% 44% 28%;
+            border-bottom: 2.5px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 1.5vh;
+            height: 7.5vh;
+            align-items: center;
+        }
+
+        .hud-left {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        .beacon-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(56, 189, 248, 0.12);
+            border: 2px solid rgba(56, 189, 248, 0.45);
+            padding: 6px 16px;
+            border-radius: 100px;
+        }
+
+        .beacon-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--accent-blue);
+            box-shadow: 0 0 12px var(--accent-blue);
+            animation: pulse-beacon 1.5s infinite;
+        }
+
+        @keyframes pulse-beacon {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.5; }
+        }
+
+        .beacon-text {
+            font-size: 0.85rem;
+            font-weight: 900;
+            letter-spacing: 2.5px;
+            color: var(--accent-blue);
+            text-transform: uppercase;
+            font-family: var(--font-display);
+        }
+
+        .hud-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .hud-subtitle {
+            font-size: 0.76rem;
+            letter-spacing: 7px;
+            color: var(--accent-blue);
+            font-weight: 900;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+            font-family: var(--font-display);
+        }
+
+        .hud-title {
+            font-size: 1.75rem;
+            font-weight: 950;
+            letter-spacing: 2.5px;
+            color: #ffffff;
+            font-family: var(--font-display);
+            text-transform: uppercase;
+        }
+
+        .hud-right {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .hud-clock {
+            font-size: 2.6rem;
+            font-weight: 900;
+            color: #ffffff;
+            font-family: var(--font-display);
+            letter-spacing: 1px;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.25);
+        }
+
+        /* 3-Slide Viewport wrapper with hardware accelerated swipes */
+        .slide-viewport-wrapper {
+            height: 74vh;
+            position: relative;
+            margin: 2.5vh 0;
+            width: 100%;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: grid;
+            gap: 2vw;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(40px) scale(0.97);
+            filter: blur(10px);
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), 
+                        transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), 
+                        filter 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+                        visibility 0.8s;
+        }
+
+        .slide.active {
+            pointer-events: auto;
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0) scale(1);
+            filter: blur(0px);
+        }
+
+        .slide.exit {
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(-40px) scale(0.97);
+            filter: blur(10px);
+        }
+
+        /* SLIDE 1: PRIMARY METAR HERO & DETAILS */
+        #slide-atmosphere {
+            grid-template-columns: 32% 66%;
+        }
+
+        .glass-panel {
+            background: var(--panel-bg);
+            border: 2px solid var(--panel-border);
+            border-radius: 35px;
+            padding: 3.2vh 2vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(35px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Left column heroweather */
+        .hero-station-label {
+            font-size: 0.88rem;
+            color: var(--accent-blue);
+            font-weight: 900;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            margin-bottom: 0.5vh;
+            font-family: var(--font-display);
+        }
+
+        .hero-city {
+            font-size: 2.8rem;
+            font-weight: 950;
+            font-family: var(--font-display);
+            letter-spacing: -0.5px;
+            color: #ffffff;
+        }
+
+        .hero-coords {
+            font-size: 0.82rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+            margin-top: 4px;
+        }
+
+        .hero-weather-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 2.2vh 0;
+            width: 100%;
+        }
+
+        .hero-weather-icon {
+            width: 175px;
+            height: 175px;
+            filter: drop-shadow(0 20px 45px rgba(56, 189, 248, 0.45));
+            margin-bottom: 1.8vh;
+        }
+
+        .hero-temp-container {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        .hero-temp {
+            font-size: 8.5rem;
+            font-weight: 950;
+            line-height: 0.8;
+            letter-spacing: -5px;
+            font-family: var(--font-display);
+            color: #ffffff;
+        }
+
+        .hero-unit {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: var(--accent-blue);
+            margin-top: 0.5rem;
+            margin-left: 2px;
+            font-family: var(--font-display);
+        }
+
+        .hero-condition {
+            font-size: 1.8rem;
+            font-weight: 950;
+            color: #ffffff;
+            margin-top: 1.5vh;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-family: var(--font-display);
+        }
+
+        .hero-range-badge {
+            display: flex;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1.5px solid rgba(255, 255, 255, 0.12);
+            padding: 6px 18px;
+            border-radius: 100px;
+            margin-top: 2vh;
+            font-size: 1rem;
+            font-weight: 900;
+            font-family: var(--font-display);
+        }
+
+        .hero-range-badge span { color: var(--text-muted); }
+        .hero-range-badge b { color: #ffffff; }
+
+        .hero-summary {
+            font-size: 0.98rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px solid rgba(255, 255, 255, 0.06);
+            padding: 14px 18px;
+            border-radius: 22px;
+            font-weight: 700;
+            width: 100%;
+        }
+
+        /* Right column: Vitals dashboard & Hourly timeline */
+        .vitals-grid-container {
+            display: grid;
+            grid-template-rows: 60% 37%;
+            gap: 3%;
+            height: 100%;
+        }
+
+        .vitals-instruments-box {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5vw;
+            height: 100%;
+        }
+
+        .instrument-card {
+            background: var(--panel-bg);
+            border: 2px solid var(--panel-border);
+            border-radius: 30px;
+            padding: 2.8vh 1.8vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(35px);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .instrument-card:hover {
+            border-color: var(--panel-hover-border);
+            transform: translateY(-2px);
+        }
+
+        .instrument-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .instrument-label {
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: var(--accent-blue);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            font-family: var(--font-display);
+        }
+
+        .instrument-badge {
+            font-size: 0.72rem;
+            font-weight: 800;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 3px 10px;
+            border-radius: 100px;
+            color: #ffffff;
+            font-family: var(--font-display);
+        }
+
+        .instrument-main-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1vw;
+            width: 100%;
+        }
+
+        .instrument-visualizer {
+            width: 64px; height: 64px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.015);
+            border: 1.5px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .precip-fluid-level {
+            position: absolute;
+            bottom: 0; left: 0; width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, rgba(14, 165, 233, 0.8), rgba(56, 189, 248, 0.4));
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+            transition: height 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .precip-fluid-wave {
+            position: absolute;
+            top: 0; left: 0; width: 200%; height: 4px;
+            background: rgba(14, 165, 233, 0.95);
+            border-radius: 50%;
+            animation: waveFlow 2s linear infinite;
+        }
+
+        @keyframes waveFlow {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        .instrument-reading-box {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+        }
+
+        .instrument-value {
+            font-size: 2.4rem;
+            font-weight: 900;
+            font-family: var(--font-display);
+            color: #ffffff;
+        }
+
+        .instrument-unit {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: var(--accent-blue);
+            margin-left: 3px;
+            font-family: var(--font-display);
+        }
+
+        .instrument-footer-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .moon-sphere-svg-kiosk {
+            width: 50px; height: 50px;
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.25));
+        }
+
+        /* Hourly Forecast Box */
+        .hourly-box {
+            background: var(--panel-bg);
+            border: 2px solid var(--panel-border);
+            border-radius: 35px;
+            padding: 2.6vh 2.2vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(35px);
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .hourly-track {
+            display: flex;
+            gap: 1.2vw;
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .hourly-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            flex: 1;
+            padding: 10px 6px;
+            border-radius: 22px;
+            background: rgba(255, 255, 255, 0.025);
+            border: 1.5px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .hourly-node:hover {
+            background: rgba(56, 189, 248, 0.12);
+            border-color: rgba(56, 189, 248, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .hourly-time {
+            font-size: 0.95rem;
+            font-weight: 900;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            font-family: var(--font-display);
+        }
+
+        .hourly-icon-container {
+            width: 36px;
+            height: 36px;
+            margin: 6px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            filter: drop-shadow(0 2px 6px rgba(255, 255, 255, 0.2));
+        }
+
+        .hourly-temp-val {
+            font-size: 1.25rem;
+            font-weight: 900;
+            color: #ffffff;
+            font-family: var(--font-display);
+        }
+
+        .hourly-precip-pct {
+            font-size: 0.78rem;
+            font-weight: 900;
+            color: var(--accent-blue);
+            margin-top: 2px;
+            font-family: monospace;
+        }
+
+        /* SLIDE 2: FULLY DEDICATED GEOGRAPHIC WIND MAP */
+        #slide-windmap {
+            grid-template-columns: 100%;
+        }
+
+        .windmap-panel {
+            background: var(--panel-bg);
+            border: 2px solid var(--panel-border);
+            border-radius: 35px;
+            padding: 3vh 2.2vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(35px);
+            height: 100%;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .windmap-canvas-container {
+            width: 100%;
+            flex: 1;
+            position: relative;
+            margin: 1.5vh 0;
+            border-radius: 28px;
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.9);
+            overflow: hidden;
+            background: #020408;
+        }
+
+        #flow-map-canvas {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+        }
+
+        .windmap-overlay-grids {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* SLIDE 3: FULLY DEDICATED 7-DAY FORECAST GRID */
+        #slide-forecast7 {
+            grid-template-columns: 100%;
+        }
+
+        .forecast7-panel {
+            background: var(--panel-bg);
+            border: 2px solid var(--panel-border);
+            border-radius: 35px;
+            padding: 3vh 2.5vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(35px);
+            height: 100%;
+            width: 100%;
+        }
+
+        .forecast-rows-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1vh;
+            height: 72%;
+            justify-content: space-between;
+            width: 100%;
+        }
+
+        /* Huge highly-readable forecast rows */
+        .forecast-row-kiosk {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.8vh 2.2vw;
+            background: rgba(255, 255, 255, 0.025);
+            border: 1.8px solid rgba(255, 255, 255, 0.06);
+            border-radius: 24px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .forecast-row-kiosk:hover {
+            background: rgba(56, 189, 248, 0.1);
+            border-color: rgba(56, 189, 248, 0.45);
+            transform: scale(1.006);
+        }
+
+        .forecast-day-name {
+            font-size: 1.45rem;
+            font-weight: 900;
+            color: #ffffff;
+            width: 15%;
+            font-family: var(--font-display);
+        }
+
+        .forecast-row-icon {
+            width: 44px; height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 10%;
+        }
+
+        .forecast-range-bar-wrapper {
+            flex: 1;
+            margin: 0 2vw;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .range-bar-label {
+            font-size: 1.45rem;
+            font-weight: 900;
+            color: var(--text-muted);
+            width: 40px;
+            text-align: right;
+            font-family: var(--font-display);
+        }
+
+        .range-bar-label.high-val {
+            color: #ffffff;
+            text-align: left;
+        }
+
+        .forecast-range-track {
+            flex: 1;
+            height: 14px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 100px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .forecast-range-fill {
+            position: absolute;
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-amber));
+            border-radius: 100px;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+        }
+
+        /* Alerts block at bottom of Slide 3 */
+        .alerts-badge-container {
+            background: rgba(255, 255, 255, 0.02);
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            border-radius: 25px;
+            padding: 2.2vh 2.2vw;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            height: 12%;
+            gap: 20px;
+        }
+
+        .alert-system-pill {
+            background-color: rgba(239, 68, 68, 0.15);
+            border: 1.8px solid rgba(239, 68, 68, 0.45);
+            color: var(--accent-coral);
+            font-size: 0.78rem;
+            font-weight: 900;
+            padding: 5px 15px;
+            border-radius: 100px;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);
+            font-family: var(--font-display);
+            flex-shrink: 0;
+        }
+
+        .alert-slider {
+            height: 30px;
+            flex: 1;
+            position: relative;
+        }
+
+        .alert-node {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            align-items: center;
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--text-secondary);
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .alert-node.active-alert {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Slide progress timer bar */
+        .progress-container {
+            position: fixed;
+            bottom: 0; left: 0; width: 100%; height: 8px;
+            background: rgba(255, 255, 255, 0.04);
+            z-index: 1000;
+        }
+
+        .progress-fill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-amber));
+            box-shadow: 0 0 15px var(--accent-blue);
+        }
+
+        .glass-icon-svg {
+            overflow: visible;
+            width: 100%; height: 100%;
+        }
+
+        @keyframes float-hero {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        .animate-float-hero {
+            animation: float-hero 6s ease-in-out infinite;
+        }
+
+        @keyframes rotate-slow {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .animate-rotate-slow {
+            animation: rotate-slow 25s linear infinite;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Procedural background weather canvas -->
+    <div id="dynamic-bg">
+        <canvas id="weather-canvas"></canvas>
+    </div>
+
+    <div class="hud-container">
+        <!-- Widescreen Header -->
+        <header class="hud-header">
+            <div class="hud-left">
+                <div class="beacon-container">
+                    <div class="beacon-dot"></div>
+                    <span class="beacon-text">SYSTEM ACTIVE</span>
+                </div>
+            </div>
+            
+            <div class="hud-center">
+                <span class="hud-subtitle">CHISTCHURCH BROADCAST HUB</span>
+                <h1 class="hud-title">METEOROLOGICAL TELEMETRY</h1>
+            </div>
+            
+            <div class="hud-right">
+                <div class="hud-clock" id="clock-display">00:00</div>
+            </div>
+        </header>
+
+        <!-- Widescreen Slide Viewport wrapper -->
+        <main class="slide-viewport-wrapper" id="viewport-rotator">
+            
+            <!-- SLIDE 1: PRIMARY METAR HERO & CONSILIDATED VITALS -->
+            <section class="slide active" id="slide-atmosphere">
+                
+                <!-- Left: Hero Card -->
+                <article class="glass-panel animate-float-hero">
+                    <div style="width:100%;">
+                        <div class="hero-station-label">STATION METAR</div>
+                        <h2 class="hero-city">Christchurch</h2>
+                        <p class="hero-coords">LAT -43.5321 | LON 172.6362</p>
+                    </div>
+
+                    <div class="hero-weather-box">
+                        <div class="hero-weather-icon" id="hero-weather-icon">
+                            <!-- Injected dynamically -->
+                        </div>
+                        <div class="hero-temp-container">
+                            <span class="hero-temp" id="hero-temp">--</span>
+                            <span class="hero-unit">°</span>
+                        </div>
+                        <h3 class="hero-condition" id="hero-condition">INITIALIZING</h3>
+                        
+                        <div class="hero-range-badge">
+                            <span>MAX</span> <b id="hero-high">--°</b>
+                            <span style="opacity:0.3;">|</span>
+                            <span>MIN</span> <b id="hero-low">--°</b>
+                        </div>
+                    </div>
+
+                    <p class="hero-summary" id="hero-summary">
+                        Synchronizing meteorological telemetry streams...
+                    </p>
+                </article>
+
+                <!-- Right: Spaced out vitals & hourly timeline -->
+                <div class="vitals-grid-container">
+                    <div class="vitals-instruments-box">
+                        <!-- Moisture wave cylinder -->
+                        <article class="instrument-card">
+                            <div class="instrument-header">
+                                <span class="instrument-label">RELATIVE MOISTURE</span>
+                                <span class="instrument-badge" id="humidity-badge">--%</span>
+                            </div>
+                            <div class="instrument-main-row">
+                                <div class="instrument-visualizer">
+                                    <div class="precip-fluid-level" id="humidity-level">
+                                        <div class="precip-fluid-wave"></div>
+                                    </div>
+                                </div>
+                                <div class="instrument-reading-box">
+                                    <span class="instrument-value" id="humidity-value">--</span>
+                                    <span class="instrument-unit">% RH</span>
+                                </div>
+                            </div>
+                            <p class="instrument-footer-desc" id="humidity-status">STABLE ATMOSPHERE</p>
+                        </article>
+
+                        <!-- Barometric scan -->
+                        <article class="instrument-card">
+                            <div class="instrument-header">
+                                <span class="instrument-label">BAROMETRIC SCAN</span>
+                                <span class="instrument-badge">NZST</span>
+                            </div>
+                            <div class="instrument-main-row">
+                                <div class="instrument-reading-box">
+                                    <span class="instrument-value" id="barometric-value" style="font-size: 2.8rem;">--</span>
+                                    <span class="instrument-unit">HPA</span>
+                                </div>
+                            </div>
+                            <p class="instrument-footer-desc">SEA LEVEL ALTITUDE</p>
+                        </article>
+
+                        <!-- Lunar intercept phase orbit -->
+                        <article class="instrument-card">
+                            <div class="instrument-header">
+                                <span class="instrument-label">LUNAR INTERCEPT</span>
+                                <span class="instrument-badge" id="moon-percent">--%</span>
+                            </div>
+                            <div class="instrument-main-row">
+                                <div class="instrument-visualizer" id="moon-visual-container" style="box-shadow:none; border:none; background:none;">
+                                    <!-- Dynamic SVG Moon Phase -->
+                                </div>
+                                <div class="instrument-reading-box">
+                                    <span class="instrument-value" id="moon-phase-value" style="font-size: 1.5rem;">--</span>
+                                </div>
+                            </div>
+                            <p class="instrument-footer-desc">ASTRONOMICAL PHASE CYCLE</p>
+                        </article>
+                    </div>
+
+                    <!-- Hourly timeline forecast -->
+                    <article class="hourly-box">
+                        <div class="panel-header-row" style="margin-bottom: 0.5vh;">
+                            <span class="panel-label">HOURLY FORECAST (REST OF TODAY)</span>
+                        </div>
+                        <div class="hourly-track" id="hourly-forecast-track">
+                            <!-- Injected dynamically via API -->
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <!-- SLIDE 2: FULLY DEDICATED GEOGRAPHIC WIND MAP -->
+            <section class="slide" id="slide-windmap">
+                <article class="windmap-panel">
+                    <div class="panel-header-row">
+                        <span class="panel-label">GEOGRAPHICAL AIRFLOW WIND VECTOR STREAM</span>
+                        <div class="panel-status-pill">ACTIVE SCAN</div>
+                    </div>
+
+                    <div class="windmap-canvas-container">
+                        <canvas id="flow-map-canvas"></canvas>
+                        <div class="windmap-overlay-grids">
+                            <div class="flow-map-grid-v" style="background:linear-gradient(to bottom, transparent, rgba(16,185,129,0.25), transparent);"></div>
+                            <div class="flow-map-grid-h" style="background:linear-gradient(to right, transparent, rgba(16,185,129,0.25), transparent);"></div>
+                            <span class="flow-compass-cardinal flow-cardinal-n">N</span>
+                            <span class="flow-compass-cardinal flow-cardinal-s">S</span>
+                            <span class="flow-compass-cardinal flow-cardinal-e">E</span>
+                            <span class="flow-compass-cardinal flow-cardinal-w">W</span>
+                        </div>
+                    </div>
+
+                    <div class="flow-meta-bar">
+                        <div class="flow-meta-item"><span>FLOW VECTOR:</span> <b id="flow-dir-value">--°</b></div>
+                        <div class="flow-meta-item"><span>VELOCITY:</span> <b id="flow-velocity-value" style="color:var(--accent-blue);">-- KM/H</b></div>
+                        <div class="flow-meta-item"><span>GIS SCAN:</span> <b>PEGASUS BAY & BANKS PENINSULA Outline</b></div>
+                    </div>
+                </article>
+            </section>
+
+            <!-- SLIDE 3: FULLY DEDICATED 7-DAY OUTLOOK PROJECTIONS -->
+            <section class="slide" id="slide-forecast7">
+                <article class="forecast7-panel">
+                    <div class="panel-header-row">
+                        <span class="panel-label">7-DAY OUTLOOK PROJECTIONS</span>
+                        <div class="panel-status-pill" style="background:rgba(56,189,248,0.1); border-color:rgba(56,189,248,0.25); color:var(--accent-blue);">PROJECTIONS</div>
+                    </div>
+
+                    <div class="forecast-rows-container" id="forecast-kiosk-rows">
+                        <!-- Injected dynamically by JS -->
+                    </div>
+
+                    <!-- Station alert monitor -->
+                    <div class="alerts-badge-container">
+                        <div class="alert-system-pill">STATION METEOR MONITOR</div>
+                        <div class="alert-slider">
+                            <div class="alert-node active-alert" id="alert-1">
+                                Real-world wind vectors driving dynamic background rainfall angles and velocities.
+                            </div>
+                            <div class="alert-node" id="alert-2">
+                                Professional GIS vector map loaded: Pegasus Bay and Banks Peninsula details active.
+                            </div>
+                            <div class="alert-node" id="alert-3">
+                                Widescreen TV kiosk system split active across 3 dedicated telemetries.
+                            </div>
+                            <div class="alert-node" id="alert-4">
+                                Port Hills telemetry synchronized at elevation 6 meters above sea level.
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </section>
+            
+        </main>
+    </div>
+
+    <!-- Timer progress indicator -->
+    <div class="progress-container">
+        <div class="progress-fill" id="progress-fill"></div>
+    </div>
+
+    <!-- Meteorological Kiosk Engine & Canvas Geography Simulator -->
+    <script>
+        const CHRISTCHURCH_COORDS = { lat: -43.5321, lon: 172.6362 };
+        const REFRESH_INTERVAL_MS = 15 * 60 * 1000; 
+        const SLIDE_INTERVAL_MS = 15000; 
+
+        // Active wind vectors driving backdrop and map physics
+        let simulationWindSpeed = 10; // km/h
+        let simulationWindDirection = 45; // deg
+        let simulationPrecipitation = 0; // mm
+        let activeConditionCode = 0; 
+        let activeIsDay = 1;
+
+        // --- Realistic Geographical GIS Map background ---
+        let mapImage = new Image();
+        mapImage.src = 'file:///home/zeus/.gemini/antigravity/brain/ad1489f0-a9d4-4722-baf9-e14a806ced27/christchurch_gis_map_1779153689320.png';
+
+        // --- Premium Real-Time Canvas Particle Wind Flow-Field Map ---
+        let flowMapLoopId;
+        function initFlowFieldMap() {
+            const canvas = document.getElementById('flow-map-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            const handleResize = () => {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+            };
+            handleResize();
+            window.addEventListener('resize', handleResize);
+
+            // Flow particles structure
+            let particles = [];
+            const maxParticles = 250;
+
+            for (let i = 0; i < maxParticles; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    speed: Math.random() * 1.2 + 0.6,
+                    life: Math.random() * 90 + 40,
+                    alpha: Math.random() * 0.7 + 0.3
+                });
+            }
+
+            function drawFlowField() {
+                // Clear trails
+                ctx.fillStyle = 'rgba(1, 3, 7, 0.28)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw gorgeous realistic GIS Map in the background
+                if (mapImage.complete) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.55; // Perfect glowing backdrop transparency
+                    
+                    // Center and scale geographic map image to fill canvas nicely
+                    const imgAspect = mapImage.width / mapImage.height;
+                    const canvasAspect = canvas.width / canvas.height;
+                    let drawWidth, drawHeight, offsetX, offsetY;
+
+                    if (canvasAspect > imgAspect) {
+                        drawWidth = canvas.width;
+                        drawHeight = canvas.width / imgAspect;
+                        offsetX = 0;
+                        offsetY = (canvas.height - drawHeight) / 2;
+                    } else {
+                        drawHeight = canvas.height;
+                        drawWidth = canvas.height * imgAspect;
+                        offsetX = (canvas.width - drawWidth) / 2;
+                        offsetY = 0;
+                    }
+
+                    ctx.drawImage(mapImage, offsetX, offsetY, drawWidth, drawHeight);
+                    ctx.restore();
+                }
+
+                // Wind angle to radians
+                const windRadian = (simulationWindDirection * Math.PI) / 180;
+                const flowDirRad = windRadian + Math.PI; // Particles flow opposite wind source
+                
+                const speedMultiplier = Math.max(0.6, simulationWindSpeed * 0.14);
+                const dx = Math.sin(flowDirRad) * speedMultiplier;
+                const dy = -Math.cos(flowDirRad) * speedMultiplier;
+
+                ctx.lineWidth = 3;
+
+                particles.forEach(p => {
+                    ctx.strokeStyle = `rgba(56, 189, 248, ${p.alpha})`;
+                    ctx.shadowColor = 'rgba(56, 189, 248, 0.5)';
+                    ctx.shadowBlur = 4;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.x - dx * 4, p.y - dy * 4);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+
+                    p.x += dx * p.speed;
+                    p.y += dy * p.speed;
+                    p.life--;
+
+                    if (p.life <= 0 || p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height) {
+                        p.x = Math.random() * canvas.width;
+                        p.y = Math.random() * canvas.height;
+                        p.life = Math.random() * 90 + 40;
+                        p.alpha = Math.random() * 0.7 + 0.3;
+                    }
+                });
+
+                // Velocity jitter
+                const velocityValue = document.getElementById('flow-velocity-value');
+                if (velocityValue) {
+                    const breath = (Math.sin(Date.now() / 800) * 0.3 + (Math.random() - 0.5) * 0.1);
+                    velocityValue.textContent = `${(simulationWindSpeed + breath).toFixed(1)} KM/H`;
+                }
+
+                flowMapLoopId = requestAnimationFrame(drawFlowField);
+            }
+
+            cancelAnimationFrame(flowMapLoopId);
+            drawFlowField();
+        }
+
+        // --- Intricate Multi-Layered Glowing Glassmorphic 3D Weather Icons ---
+        const Glass3DWeatherIcons = {
+            Sun: () => `
+                <svg viewBox="0 0 100 100" class="glass-icon-svg">
+                    <defs>
+                        <radialGradient id="sun3dGlow" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="#fffbeb" stop-opacity="1"/>
+                            <stop offset="30%" stop-color="#fef08a" stop-opacity="0.95"/>
+                            <stop offset="65%" stop-color="#f59e0b" stop-opacity="0.4"/>
+                            <stop offset="100%" stop-color="#ea580c" stop-opacity="0"/>
+                        </radialGradient>
+                        <linearGradient id="sun3dCore" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#ffffff"/>
+                            <stop offset="20%" stop-color="#fef08a"/>
+                            <stop offset="100%" stop-color="#ea580c"/>
+                        </linearGradient>
+                    </defs>
+                    <circle cx="50" cy="50" r="38" fill="url(#sun3dGlow)" class="animate-rotate-slow" style="transform-origin: 50px 50px;" />
+                    <circle cx="50" cy="50" r="22" fill="url(#sun3dCore)" stroke="rgba(255,255,255,0.45)" stroke-width="2" style="filter: drop-shadow(0 0 15px rgba(251,191,36,0.6));" />
+                    <g class="animate-rotate-slow" style="transform-origin: 50px 50px;">
+                        ${[0, 45, 90, 135, 180, 225, 270, 315].map(deg => `
+                            <line x1="50" y1="10" x2="50" y2="20" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" transform="rotate(${deg} 50 50)" />
+                        `).join('')}
+                    </g>
+                </svg>
+            `,
+            Cloud: () => `
+                <svg viewBox="0 0 100 100" class="glass-icon-svg">
+                    <defs>
+                        <linearGradient id="cloud3dBack" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#64748b"/>
+                            <stop offset="100%" stop-color="#334155"/>
+                        </linearGradient>
+                        <linearGradient id="cloud3dFront" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#ffffff"/>
+                            <stop offset="40%" stop-color="#cbd5e1"/>
+                            <stop offset="100%" stop-color="#475569"/>
+                        </linearGradient>
+                        <linearGradient id="cloudGlassHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="rgba(255,255,255,0.6)"/>
+                            <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+                        </linearGradient>
+                    </defs>
+                    <path d="M46 64h18c5.5 0 10-4.5 10-10s-4.5-10-10-10c-1-.1-2.2.1-3.2.5C59 38 52.5 33 45 33c-8.8 0-16 7.2-16 16 0 1.2.1 2.3.4 3.4C25 53 22 56.5 22 61c0 5 4 9 9 9h15" fill="url(#cloud3dBack)" opacity="0.6" class="animate-float-hero" style="animation-delay: -1.5s;" />
+                    <path d="M58 69H28c-6.6 0-12-5.4-12-12c0-5.8 4.2-10.8 10-11.8C27.2 37 34.5 31 43 31c8.5 0 15.8 6 17 14.2c5.8 1 10 6 10 11.8c0 6.6-5.4 12-12 12Z" fill="url(#cloud3dFront)" stroke="url(#cloudGlassHighlight)" stroke-width="1.8" class="animate-float-hero" style="filter: drop-shadow(0 15px 25px rgba(0,0,0,0.5));" />
+                </svg>
+            `,
+            Rain: () => `
+                <svg viewBox="0 0 100 100" class="glass-icon-svg">
+                    <defs>
+                        <linearGradient id="rain3dCloud" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#94a3b8"/>
+                            <stop offset="50%" stop-color="#334155"/>
+                            <stop offset="100%" stop-color="#0f172a"/>
+                        </linearGradient>
+                    </defs>
+                    <path d="M58 59H28c-6.6 0-12-5.4-12-12c0-5.8 4.2-10.8 10-11.8C27.2 27 34.5 21 43 21c8.5 0 15.8 6 17 14.2c5.8 1 10 6 10 11.8c0 6.6-5.4 12-12 12Z" fill="url(#rain3dCloud)" stroke="rgba(255,255,255,0.15)" stroke-width="1.5" class="animate-float-hero" style="filter: drop-shadow(0 15px 25px rgba(0,0,0,0.6));" />
+                    <g>
+                        <line x1="30" y1="64" x2="26" y2="76" stroke="#38bdf8" stroke-width="4.5" stroke-linecap="round" style="animation: rainDropAnim 1s infinite linear; animation-delay: 0s; filter: drop-shadow(0 0 5px rgba(56,189,248,0.5));" />
+                        <line x1="45" y1="64" x2="41" y2="76" stroke="#38bdf8" stroke-width="4.5" stroke-linecap="round" style="animation: rainDropAnim 1s infinite linear; animation-delay: 0.3s; filter: drop-shadow(0 0 5px rgba(56,189,248,0.5));" />
+                        <line x1="60" y1="64" x2="56" y2="76" stroke="#38bdf8" stroke-width="4.5" stroke-linecap="round" style="animation: rainDropAnim 1s infinite linear; animation-delay: 0.6s; filter: drop-shadow(0 0 5px rgba(56,189,248,0.5));" />
+                    </g>
+                    <style>
+                        @keyframes rainDropAnim {
+                            0% { transform: translateY(-5px); opacity: 0; }
+                            50% { opacity: 1; }
+                            100% { transform: translateY(15px); opacity: 0; }
+                        }
+                    </style>
+                </svg>
+            `,
+            Moon: () => `
+                <svg viewBox="0 0 100 100" class="glass-icon-svg">
+                    <defs>
+                        <radialGradient id="moon3dCore" cx="40%" cy="40%" r="60%">
+                            <stop offset="0%" stop-color="#ffffff"/>
+                            <stop offset="55%" stop-color="#cbd5e1"/>
+                            <stop offset="100%" stop-color="#475569"/>
+                        </radialGradient>
+                    </defs>
+                    <circle cx="50" cy="50" r="24" fill="url(#moon3dCore)" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" class="animate-float-hero" style="filter: drop-shadow(0 0 15px rgba(56,189,248,0.25));" />
+                </svg>
+            `
+        };
+
+        const CompactWeatherIcons = {
+            Sun: () => `
+                <svg viewBox="0 0 24 24" style="width:36px; height:36px; fill:none; stroke:#fbbf24; stroke-width:3; stroke-linecap:round; stroke-linejoin:round;">
+                    <circle cx="12" cy="12" r="5" fill="rgba(251,191,36,0.15)"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                </svg>
+            `,
+            Cloud: () => `
+                <svg viewBox="0 0 24 24" style="width:36px; height:36px; fill:none; stroke:#ffffff; stroke-width:3; stroke-linecap:round; stroke-linejoin:round;">
+                    <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" fill="rgba(255,255,255,0.1)"></path>
+                </svg>
+            `,
+            Rain: () => `
+                <svg viewBox="0 0 24 24" style="width:36px; height:36px; fill:none; stroke:#38bdf8; stroke-width:3; stroke-linecap:round; stroke-linejoin:round;">
+                    <line x1="16" y1="13" x2="16" y2="21"></line>
+                    <line x1="8" y1="13" x2="8" y2="21"></line>
+                    <path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25" stroke="#ffffff" fill="rgba(255,255,255,0.1)"></path>
+                </svg>
+            `,
+            Moon: () => `
+                <svg viewBox="0 0 24 24" style="width:36px; height:36px; fill:none; stroke:#e2e8f0; stroke-width:3; stroke-linecap:round; stroke-linejoin:round;">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="rgba(226,232,240,0.1)"></path>
+                </svg>
+            `
+        };
+
+        const getIconForCode = (code, isDay) => {
+            if (code <= 1) return isDay ? Glass3DWeatherIcons.Sun() : Glass3DWeatherIcons.Moon();
+            if (code <= 3 || (code >= 45 && code <= 48)) return Glass3DWeatherIcons.Cloud();
+            return Glass3DWeatherIcons.Rain();
+        };
+
+        const getCompactIconForCode = (code, isDay) => {
+            if (code <= 1) return isDay ? CompactWeatherIcons.Sun() : CompactWeatherIcons.Moon();
+            if (code <= 3 || (code >= 45 && code <= 48)) return CompactWeatherIcons.Cloud();
+            return CompactWeatherIcons.Rain();
+        };
+
+        const getConditionText = (code) => {
+            const map = {
+                0: 'Clear Sky', 1: 'Mainly Clear', 2: 'Partly Cloudy', 3: 'Overcast',
+                45: 'Dense Fog', 48: 'Freezing Fog', 51: 'Light Drizzle', 53: 'Drizzle', 55: 'Heavy Drizzle',
+                61: 'Light Rain', 63: 'Moderate Rain', 65: 'Heavy Rain', 71: 'Light Snow', 75: 'Heavy Snow',
+                80: 'Rain Showers', 81: 'Heavy Showers', 95: 'Thunderstorm'
+            };
+            return map[code] || 'Cloudy Skies';
+        };
+
+        const getDayName = (dateStr) => {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-NZ', { weekday: 'short' }).toUpperCase();
+        };
+
+        // --- Moon Orbit calculator ---
+        function getMoonPhaseDetails(date) {
+            const epoch = new Date(Date.UTC(2000, 0, 6, 18, 14, 0));
+            const synodicPeriod = 29.530588853; 
+            const diffMs = date.getTime() - epoch.getTime();
+            const ageDays = (diffMs / (24 * 60 * 60 * 1000)) % synodicPeriod;
+            const ageNormalized = ageDays < 0 ? ageDays + synodicPeriod : ageDays;
+            
+            const phaseIndex = ageNormalized / synodicPeriod;
+            const illumPercent = Math.round((1 - Math.cos(phaseIndex * 2 * Math.PI)) / 2 * 100);
+            
+            let name = 'New Moon';
+            let svgPath = '';
+            
+            if (phaseIndex < 0.03 || phaseIndex > 0.97) {
+                name = 'New Moon';
+            } else if (phaseIndex >= 0.03 && phaseIndex < 0.22) {
+                name = 'Waxing Crescent';
+                svgPath = 'M 22 50 A 23 23 0 0 1 45 27 A 23 23 0 0 1 45 73 A 23 23 0 0 1 22 50 Z M 30 50 A 23 15 0 0 1 45 27 A 23 15 0 0 1 45 73 A 23 15 0 0 1 30 50 Z';
+            } else if (phaseIndex >= 0.22 && phaseIndex < 0.28) {
+                name = 'First Quarter';
+                svgPath = 'M 45 27 A 23 23 0 0 1 45 73 L 45 27 Z';
+            } else if (phaseIndex >= 0.28 && phaseIndex < 0.47) {
+                name = 'Waxing Gibbous';
+                svgPath = 'M 45 27 A 23 23 0 0 1 45 73 A 23 23 0 0 1 45 27 Z M 45 27 A 23 12 0 0 0 45 73 A 23 12 0 0 1 45 27 Z';
+            } else if (phaseIndex >= 0.47 && phaseIndex < 0.53) {
+                name = 'Full Moon';
+                svgPath = 'M 45 50 m -23 0 a 23 23 0 1 0 46 0 a 23 23 0 1 0 -46 0';
+            } else if (phaseIndex >= 0.53 && phaseIndex < 0.72) {
+                name = 'Waning Gibbous';
+                svgPath = 'M 45 27 A 23 23 0 0 0 45 73 A 23 23 0 0 0 45 27 Z M 45 27 A 23 12 0 0 1 45 73 A 23 12 0 0 0 45 27 Z';
+            } else if (phaseIndex >= 0.72 && phaseIndex < 0.78) {
+                name = 'Last Quarter';
+                svgPath = 'M 45 27 A 23 23 0 0 0 45 73 L 45 27 Z';
+            } else {
+                name = 'Waning Crescent';
+                svgPath = 'M 68 50 A 23 23 0 0 0 45 27 A 23 23 0 0 0 45 73 A 23 23 0 0 0 68 50 Z M 60 50 A 23 15 0 0 0 45 27 A 23 15 0 0 0 45 73 A 23 15 0 0 0 60 50 Z';
+            }
+
+            return { name, percent: illumPercent, path: svgPath };
+        }
+
+        function renderVisualMoonPhase() {
+            const container = document.getElementById('moon-visual-container');
+            if (!container) return;
+            const details = getMoonPhaseDetails(new Date());
+
+            container.innerHTML = `
+                <svg viewBox="0 0 90 90" class="moon-sphere-svg-kiosk">
+                    <defs>
+                        <radialGradient id="moon3dR" cx="40%" cy="40%" r="60%">
+                            <stop offset="0%" stop-color="#ffffff"/>
+                            <stop offset="65%" stop-color="#e2e8f0" stop-opacity="0.9"/>
+                            <stop offset="100%" stop-color="#475569" stop-opacity="0.4"/>
+                        </radialGradient>
+                    </defs>
+                    <circle cx="45" cy="45" r="23" fill="#111827" stroke="rgba(255,255,255,0.12)" stroke-width="1.5" />
+                    ${details.path ? `<path d="${details.path}" fill="url(#moon3dR)" />` : ''}
+                </svg>
+            `;
+
+            document.getElementById('moon-percent').textContent = `${details.percent}%`;
+            document.getElementById('moon-phase-value').textContent = details.name;
+        }
+
+        // --- Core Kiosk Telemetry Fetch Engine ---
+        async function updateWeather() {
+            try {
+                const params = new URLSearchParams({
+                    latitude: CHRISTCHURCH_COORDS.lat,
+                    longitude: CHRISTCHURCH_COORDS.lon,
+                    current: 'temperature_2m,relative_humidity_2m,is_day,precipitation,weather_code,wind_speed_10m,wind_direction_10m,pressure_msl,wind_gusts_10m,dew_point_2m',
+                    hourly: 'temperature_2m,weather_code,precipitation_probability',
+                    daily: 'temperature_2m_max,temperature_2m_min,weather_code',
+                    timezone: 'Pacific/Auckland',
+                    forecast_days: 7
+                });
+
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}&t=${Date.now()}`);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                const data = await res.json();
+                if (!data || !data.current || !data.daily || !data.hourly) throw new Error('Malformed API Payload');
+
+                const cur = data.current;
+                const daily = data.daily;
+                const hourly = data.hourly;
+
+                // Sync physics wind vectors
+                simulationWindSpeed = cur.wind_speed_10m ?? 10;
+                simulationWindDirection = cur.wind_direction_10m ?? 45;
+                simulationPrecipitation = cur.precipitation ?? 0;
+                activeConditionCode = cur.weather_code ?? 0;
+                activeIsDay = cur.is_day ?? 1;
+
+                // 1. Update Hero Card
+                const curTemp = Math.round(cur.temperature_2m ?? 0);
+                document.getElementById('hero-temp').textContent = curTemp;
+                
+                const curHigh = Math.round(daily.temperature_2m_max[0] ?? 0);
+                const curLow = Math.round(daily.temperature_2m_min[0] ?? 0);
+                document.getElementById('hero-high').textContent = `${curHigh}°`;
+                document.getElementById('hero-low').textContent = `${curLow}°`;
+                
+                const condText = getConditionText(cur.weather_code);
+                document.getElementById('hero-condition').textContent = condText;
+                document.getElementById('hero-weather-icon').innerHTML = getIconForCode(cur.weather_code, cur.is_day);
+
+                // High contrast read-out summary
+                let summaryMsg = `Currently ${curTemp}°C with ${condText.toLowerCase()}. Real-time wind velocity registers at ${Math.round(cur.wind_speed_10m)} km/h from the ${simulationWindDirection}°.`;
+                document.getElementById('hero-summary').textContent = summaryMsg;
+
+                // 2. Update Flow-Field Card
+                document.getElementById('flow-dir-value').textContent = `${simulationWindDirection}°`;
+
+                // 3. Update Relative Humidity Meter
+                const humVal = Math.round(cur.relative_humidity_2m ?? 0);
+                document.getElementById('humidity-value').textContent = humVal;
+                document.getElementById('humidity-badge').textContent = `${humVal}%`;
+                document.getElementById('humidity-level').style.height = `${humVal}%`;
+                
+                if (humVal > 70) document.getElementById('humidity-status').textContent = 'DAMP ATMOSPHERE';
+                else if (humVal < 40) document.getElementById('humidity-status').textContent = 'DRY ATMOSPHERE';
+                else document.getElementById('humidity-status').textContent = 'STABLE ATMOSPHERE';
+
+                // 4. Update Barometrics & Moon Phase
+                document.getElementById('barometric-value').textContent = Math.round(cur.pressure_msl ?? 1013);
+                renderVisualMoonPhase();
+
+                // 5. Update Hourly Forecast timeline (Slide 1)
+                const hourlyTrack = document.getElementById('hourly-forecast-track');
+                if (hourlyTrack) {
+                    hourlyTrack.innerHTML = '';
+                    
+                    const currentHourIdx = new Date().getHours();
+                    for (let j = 0; j < 6; j++) {
+                        const targetIdx = currentHourIdx + j;
+                        if (targetIdx >= hourly.time.length) break;
+
+                        const hourTimeStr = new Date(hourly.time[targetIdx]).toLocaleTimeString('en-NZ', { hour: '2-digit', minute: '2-digit', hour12: false });
+                        const hourTemp = Math.round(hourly.temperature_2m[targetIdx]);
+                        const hourCode = hourly.weather_code[targetIdx];
+                        const hourPrecipPct = hourly.precipitation_probability[targetIdx];
+
+                        const node = document.createElement('div');
+                        node.className = 'hourly-node';
+                        node.innerHTML = `
+                            <span class="hourly-time">${hourTimeStr}</span>
+                            <div class="hourly-icon-container">${getCompactIconForCode(hourCode, activeIsDay)}</div>
+                            <span class="hourly-temp-val">${hourTemp}°</span>
+                            <span class="hourly-precip-pct">${hourPrecipPct}%</span>
+                        `;
+                        hourlyTrack.appendChild(node);
+                    }
+                }
+
+                // 6. Update Widescreen 7-Day Forecast Grid (Slide 3)
+                const forecastGrid = document.getElementById('forecast-kiosk-rows');
+                if (forecastGrid) {
+                    forecastGrid.innerHTML = '';
+                    
+                    const maxTemps = daily.temperature_2m_max;
+                    const minTemps = daily.temperature_2m_min;
+                    const absoluteMax = Math.max(...maxTemps);
+                    const absoluteMin = Math.min(...minTemps);
+                    const tempSpan = absoluteMax - absoluteMin || 1;
+
+                    daily.time.forEach((time, i) => {
+                        const rowHigh = Math.round(maxTemps[i]);
+                        const rowLow = Math.round(minTemps[i]);
+                        
+                        const leftPercent = ((rowLow - absoluteMin) / tempSpan) * 100;
+                        const widthPercent = ((rowHigh - rowLow) / tempSpan) * 100;
+
+                        const row = document.createElement('div');
+                        row.className = 'forecast-row-kiosk';
+                        
+                        row.innerHTML = `
+                            <span class="forecast-day-name">${getDayName(time)}</span>
+                            <div class="forecast-row-icon">${getCompactIconForCode(daily.weather_code[i], true)}</div>
+                            <div class="forecast-range-bar-wrapper">
+                                <span class="range-bar-label">${rowLow}°</span>
+                                <div class="forecast-range-track">
+                                    <div class="forecast-range-fill" style="left: ${leftPercent}%; width: ${widthPercent}%;"></div>
+                                </div>
+                                <span class="range-bar-label high-val">${rowHigh}°</span>
+                            </div>
+                        `;
+                        
+                        forecastGrid.appendChild(row);
+                    });
+                }
+
+                // Reset canvas
+                initCanvasBackgroundEngine();
+
+            } catch (err) {
+                console.error('[Kiosk Core Error]', err);
+                setTimeout(updateWeather, 12000);
+            }
+        }
+
+        // --- Premium Procedural Weather Simulator Backdrop ---
+        let renderLoopId;
+        function initCanvasBackgroundEngine() {
+            const canvas = document.getElementById('weather-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            const handleResize = () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            };
+            handleResize();
+            window.addEventListener('resize', handleResize);
+
+            let rainParticles = [];
+            let snowParticles = [];
+            let cloudLayers = [];
+            let stars = [];
+            let shootingStars = [];
+
+            // Stars
+            for (let s = 0; s < 100; s++) {
+                stars.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight,
+                    size: Math.random() * 1.5 + 0.5,
+                    opacity: Math.random(),
+                    speed: 0.005 + Math.random() * 0.01
+                });
+            }
+
+            // Clouds
+            for (let c = 0; c < 4; c++) {
+                cloudLayers.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * (window.innerHeight * 0.45),
+                    radius: Math.random() * 160 + 100,
+                    opacity: 0.05 + Math.random() * 0.1,
+                    speed: 0.08 + Math.random() * 0.2
+                });
+            }
+
+            let lightningBolt = null;
+
+            function render() {
+                const hour = new Date().getHours();
+                const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                
+                if (activeConditionCode >= 3) {
+                    skyGrad.addColorStop(0, '#0c111e');
+                    skyGrad.addColorStop(1, '#020306');
+                } else if (hour >= 6 && hour < 9) {
+                    skyGrad.addColorStop(0, '#2e0f05');
+                    skyGrad.addColorStop(0.5, '#120502');
+                    skyGrad.addColorStop(1, '#020306');
+                } else if (hour >= 9 && hour < 17) {
+                    skyGrad.addColorStop(0, '#04162f');
+                    skyGrad.addColorStop(0.7, '#010a15');
+                    skyGrad.addColorStop(1, '#020306');
+                } else if (hour >= 17 && hour < 20) {
+                    skyGrad.addColorStop(0, '#350a02');
+                    skyGrad.addColorStop(0.5, '#150401');
+                    skyGrad.addColorStop(1, '#020306');
+                } else {
+                    skyGrad.addColorStop(0, '#01040a');
+                    skyGrad.addColorStop(1, '#000103');
+                }
+
+                ctx.fillStyle = skyGrad;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Stars
+                if (!activeIsDay && activeConditionCode < 3) {
+                    stars.forEach(st => {
+                        st.opacity += st.speed;
+                        if (st.opacity > 1 || st.opacity < 0) st.speed = -st.speed;
+                        ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0.1, st.opacity)})`;
+                        ctx.beginPath();
+                        ctx.arc(st.x, st.y, st.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+
+                    if (Math.random() < 0.002 && shootingStars.length < 2) {
+                        shootingStars.push({
+                            x: Math.random() * (canvas.width * 0.7),
+                            y: 0,
+                            speed: Math.random() * 6 + 10,
+                            length: Math.random() * 60 + 80,
+                            alpha: 1.0
+                        });
+                    }
+
+                    shootingStars.forEach((ss, sIdx) => {
+                        ctx.strokeStyle = `rgba(255, 255, 255, ${ss.alpha})`;
+                        ctx.lineWidth = 1.8;
+                        ctx.beginPath();
+                        ctx.moveTo(ss.x, ss.y);
+                        ctx.lineTo(ss.x + ss.length, ss.y + ss.length * 0.6);
+                        ctx.stroke();
+
+                        ss.x += ss.speed;
+                        ss.y += ss.speed * 0.6;
+                        ss.alpha -= 0.02;
+
+                        if (ss.alpha <= 0) shootingStars.splice(sIdx, 1);
+                    });
+                }
+
+                // Sun
+                if (activeIsDay && activeConditionCode < 3) {
+                    const sunGrad = ctx.createRadialGradient(canvas.width * 0.85, canvas.height * 0.2, 0, canvas.width * 0.85, canvas.height * 0.2, 300);
+                    sunGrad.addColorStop(0, 'rgba(254, 240, 138, 0.15)');
+                    sunGrad.addColorStop(0.4, 'rgba(245, 158, 11, 0.03)');
+                    sunGrad.addColorStop(1, 'rgba(245, 158, 11, 0)');
+                    ctx.fillStyle = sunGrad;
+                    ctx.beginPath();
+                    ctx.arc(canvas.width * 0.85, canvas.height * 0.2, 300, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Volumetric Clouds
+                const windSpeedMod = Math.max(0.1, simulationWindSpeed / 8);
+                ctx.fillStyle = activeIsDay ? 'rgba(255, 255, 255, 1)' : 'rgba(100, 116, 139, 1)';
+                cloudLayers.forEach(c => {
+                    ctx.globalAlpha = c.opacity;
+                    ctx.beginPath();
+                    ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+
+                    c.x += c.speed * windSpeedMod;
+                    if (c.x - c.radius > canvas.width) {
+                        c.x = -c.radius;
+                        c.y = Math.random() * (canvas.height * 0.5);
+                    }
+                });
+
+                // Rain
+                if (activeConditionCode >= 51) {
+                    const rainDensity = activeConditionCode >= 63 ? 80 : 40;
+                    while (rainParticles.length < rainDensity) {
+                        rainParticles.push({
+                            x: Math.random() * canvas.width,
+                            y: -20,
+                            speed: Math.random() * 5 + 10,
+                            length: Math.random() * 18 + 12
+                        });
+                    }
+
+                    const windRadian = (simulationWindDirection * Math.PI) / 180;
+                    const dx = Math.sin(windRadian) * (simulationWindSpeed * 0.2);
+                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+                    ctx.lineWidth = 1.5;
+
+                    rainParticles.forEach((p, rIdx) => {
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p.x + dx, p.y + p.length);
+                        ctx.stroke();
+
+                        p.y += p.speed;
+                        p.x += dx;
+
+                        if (p.y > canvas.height) rainParticles.splice(rIdx, 1);
+                    });
+
+                    // Lightning
+                    if (activeConditionCode === 95) {
+                        if (Math.random() < 0.002 && !lightningBolt) {
+                            lightningBolt = {
+                                segments: [],
+                                alpha: 1.0,
+                                startX: Math.random() * canvas.width,
+                                startY: 0
+                            };
+                            let currX = lightningBolt.startX;
+                            let currY = lightningBolt.startY;
+                            for (let step = 0; step < 10; step++) {
+                                let nextY = currY + Math.random() * 50 + 30;
+                                let nextX = currX + (Math.random() - 0.5) * 50;
+                                lightningBolt.segments.push({ x1: currX, y1: currY, x2: nextX, y2: nextY });
+                                currX = nextX;
+                                currY = nextY;
+                                if (currY > canvas.height) break;
+                            }
+                        }
+
+                        if (lightningBolt) {
+                            ctx.fillStyle = `rgba(255, 255, 255, ${lightningBolt.alpha * 0.12})`;
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                            ctx.strokeStyle = `rgba(224, 242, 254, ${lightningBolt.alpha})`;
+                            ctx.lineWidth = 3;
+                            ctx.shadowColor = 'rgba(56, 189, 248, 0.5)';
+                            ctx.shadowBlur = 10;
+                            ctx.beginPath();
+                            lightningBolt.segments.forEach(s => {
+                                ctx.moveTo(s.x1, s.y1);
+                                ctx.lineTo(s.x2, s.y2);
+                            });
+                            ctx.stroke();
+                            ctx.shadowBlur = 0;
+
+                            lightningBolt.alpha -= 0.08;
+                            if (lightningBolt.alpha <= 0) lightningBolt = null;
+                        }
+                    }
+                }
+
+                // Snow
+                if (activeConditionCode >= 71) {
+                    while (snowParticles.length < 50) {
+                        snowParticles.push({
+                            x: Math.random() * canvas.width,
+                            y: -10,
+                            speed: Math.random() * 1.2 + 0.5,
+                            radius: Math.random() * 2.5 + 0.8,
+                            drift: (Math.random() - 0.5) * 0.3
+                        });
+                    }
+
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                    const windRadian = (simulationWindDirection * Math.PI) / 180;
+                    const dx = Math.sin(windRadian) * (simulationWindSpeed * 0.06);
+
+                    snowParticles.forEach((p, sIdx) => {
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        p.y += p.speed;
+                        p.x += dx + p.drift;
+
+                        if (p.y > canvas.height) snowParticles.splice(sIdx, 1);
+                    });
+                }
+
+                renderLoopId = requestAnimationFrame(render);
+            }
+
+            cancelAnimationFrame(renderLoopId);
+            render();
+        }
+
+        // --- Slow Rotating Alerts ---
+        let currentAlertIdx = 1;
+        function cycleAlerts() {
+            const alerts = document.querySelectorAll('.alert-node');
+            if (alerts.length === 0) return;
+
+            alerts.forEach(el => el.classList.remove('active-alert'));
+            currentAlertIdx = (currentAlertIdx % alerts.length) + 1;
+            
+            const targetEl = document.getElementById(`alert-${currentAlertIdx}`);
+            if (targetEl) targetEl.classList.add('active-alert');
+        }
+        setInterval(cycleAlerts, 6000); 
+
+        // --- Premium 3-Slide Swipe Transition Engine ---
+        let currentSlideIdx = 0;
+        const slides = ['slide-atmosphere', 'slide-windmap', 'slide-forecast7'];
+
+        function cycleSlides() {
+            // Synchronously remove active and exit states
+            slides.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.classList.remove('active', 'exit');
+                }
+            });
+
+            // Mark previous slide as exit
+            const prevSlideId = slides[currentSlideIdx];
+            const prevSlideEl = document.getElementById(prevSlideId);
+            if (prevSlideEl) {
+                prevSlideEl.classList.add('exit');
+            }
+
+            // Increment index
+            currentSlideIdx = (currentSlideIdx + 1) % slides.length;
+
+            // Mark next slide as active
+            const nextSlideId = slides[currentSlideIdx];
+            const nextSlideEl = document.getElementById(nextSlideId);
+            if (nextSlideEl) {
+                nextSlideEl.classList.add('active');
+            }
+        }
+
+        function updateProgressBar() {
+            const bar = document.getElementById('progress-fill');
+            if (!bar) return;
+            
+            const now = Date.now();
+            const elapsed = now % SLIDE_INTERVAL_MS;
+            const percent = (elapsed / SLIDE_INTERVAL_MS) * 100;
+            
+            bar.style.width = percent + '%';
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-NZ', { 
+                hour: '2-digit', minute: '2-digit', hour12: false 
+            });
+            const clockEl = document.getElementById('clock-display');
+            if (clockEl) clockEl.textContent = timeStr;
+        }
+
+        // --- Init ---
+        updateClock();
+        updateWeather();
+        initFlowFieldMap();
+
+        setInterval(updateProgressBar, 50);
+        setInterval(cycleSlides, SLIDE_INTERVAL_MS);
+        setInterval(updateClock, 1000);
+        setInterval(updateWeather, REFRESH_INTERVAL_MS);
+    </script>
+</body>
+</html>

@@ -193,7 +193,7 @@
             justify-content: center;
             align-items: center;
         }
-        
+
         .icon-container svg {
             overflow: visible; /* Allow animations to exceed viewBox without clipping */
             width: 100%;
@@ -346,10 +346,10 @@
         /* Animations */
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .animate-rotate { animation: rotate 10s linear infinite; }
-        
+
         @keyframes drift { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(30px); } }
         .animate-drift { animation: drift 12s ease-in-out infinite; }
-        
+
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
         .animate-float { animation: float 6s ease-in-out infinite; }
 
@@ -406,7 +406,7 @@
                     <div class="icon-container animate-float" id="main-icon">
                         <!-- SVG injected via JS -->
                     </div>
-                    
+
                     <div class="temp-display text-value">
                         <div class="temp-main" id="temp">--</div>
                         <div class="temp-unit">°C</div>
@@ -438,6 +438,8 @@
                     </div>
                 </div>
             </div>
+        </div>
+
         <!-- Slide 2: 7-Day Forecast -->
         <div class="slide" id="slide-forecast">
             <div class="dashboard">
@@ -455,7 +457,6 @@
         </div>
 
     </div>
-
 
     <!-- Progress Bar -->
     <div class="progress-container">
