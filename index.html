@@ -376,6 +376,11 @@
         /* Navigation Hub */
         /* Removed nav-hub to prevent display overlap */
     </style>
+    <script>
+        if (window.self !== window.top) {
+            document.write('<style>#progress-bar, #progress-container, .timer-bar, .timer-container, .progress-bar, .progress-container { display: none !important; }</style>');
+        }
+    </script>
 </head>
 <body>
     <div id="dynamic-bg">
